@@ -1,0 +1,12 @@
+services:
+  kapitour:
+    build: .
+    container_name: kapitour
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./database:/app/database
+    env_file:
+      - .env
+    environment:
+      - DATABASE_URL=sqlite:///database/kapitour.db
