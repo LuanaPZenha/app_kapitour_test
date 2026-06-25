@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   View,
   Text,
@@ -6,12 +6,15 @@ import {
   ScrollView,
   ActivityIndicator,
   RefreshControl,
+  Animated,
+  Easing,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import * as Location from "expo-location";
+import { useFonts } from "expo-font";
 
 import { kapipassApi, dbApi } from "../lib/api";
 import { useAuth } from "../hooks/useAuth";
@@ -49,6 +52,43 @@ export default function KapiPassScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [checkingIn, setCheckingIn] = useState(false);
+
+  // Fonte Azonix apenas para o título do KapiPass (não afeta a Home)
+  const [brandFontLoaded] = useFonts({
+    Azonix: require("../assets/fonts/Azonix.otf"),
+  });
+
+  // Animação da capivara no título (balanço + leve rotação)
+  const capyAnim = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(capyAnim, {
+          toValue: 1,
+          duration: 1100,
+          easing: Easing.inOut(Easing.sin),
+          useNativeDriver: true,
+        }),
+        Animated.timing(capyAnim, {
+          toValue: 0,
+          duration: 1100,
+          easing: Easing.inOut(Easing.sin),
+          useNativeDriver: true,
+        }),
+      ])
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [capyAnim]);
+
+  const capyTranslateY = capyAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, -6],
+  });
+  const capyRotate = capyAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ["-6deg", "6deg"],
+  });
 
   const load = useCallback(async () => {
     if (!userInfo?.id) {
@@ -182,7 +222,7 @@ export default function KapiPassScreen() {
   const nome = passaporte?.usuario?.nome || userInfo?.nome || "Viajante";
   const inicial = nome.trim().charAt(0).toUpperCase();
   const progressoNivel = passaporte?.xp?.progresso_nivel || 0;
-  const carimbosPreview = carimbos.slice(0, 4);
+  const carimbosPreview = carimbos.slice(0, 3);
   const conquistasPreview = conquistas.slice(0, 3);
 
   return (
@@ -203,7 +243,40 @@ export default function KapiPassScreen() {
           }
         >
           <View style={styles.header}>
-            <SectionHeader title="KapiPass" subtitle="Seu passaporte turístico gamificado" />
+            <View style={styles.heroTitleRow}>
+              <View style={styles.heroIconWrap}>
+                <Ionicons name="compass" size={22} color={colors.accent} />
+              </View>
+              <Text
+                style={[
+                  styles.heroTitle,
+                  brandFontLoaded && {
+                    fontFamily: "Azonix",
+                    fontWeight: "normal",
+                    letterSpacing: 1.5,
+                  },
+                ]}
+              >
+                Kapi
+                <Text
+                  style={[
+                    styles.heroTitleAccent,
+                    brandFontLoaded && { fontFamily: "Azonix", fontWeight: "normal" },
+                  ]}
+                >
+                  Pass
+                </Text>
+              </Text>
+              <Animated.Image
+                source={KAPIPASS_STAMP}
+                style={[
+                  styles.heroCapy,
+                  { transform: [{ translateY: capyTranslateY }, { rotate: capyRotate }] },
+                ]}
+                resizeMode="cover"
+              />
+            </View>
+            <Text style={styles.heroSubtitle}>Seu passaporte turístico gamificado</Text>
           </View>
 
           {/* Cartão do passaporte */}
@@ -379,6 +452,40 @@ const styles = StyleSheet.create({
   },
   header: {
     marginBottom: spacing.sm,
+  },
+  heroTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.xs,
+  },
+  heroIconWrap: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "rgba(247, 160, 0, 0.15)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  heroTitle: {
+    ...typography.hero,
+    fontSize: 24,
+  },
+  heroTitleAccent: {
+    color: colors.accent,
+  },
+  heroCapy: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    marginLeft: spacing.xxs,
+    borderWidth: 1.5,
+    borderColor: colors.accent,
+  },
+  heroSubtitle: {
+    ...typography.body,
+    marginTop: spacing.xs,
+    lineHeight: 20,
+    marginLeft: 36 + spacing.xs,
   },
   passport: {
     borderRadius: radius.lg + 4,
