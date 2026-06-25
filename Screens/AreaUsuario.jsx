@@ -2,7 +2,6 @@ import React, { useState, useEffect, useCallback } from "react";
 import {
   View,
   Text,
-  TouchableOpacity,
   StyleSheet,
   ScrollView,
   Image,
@@ -26,13 +25,10 @@ import PointDetail from "../components/PointDetail";
 import DetalhesRota from "./DetalhesRotas";
 import Button from "../components/Button";
 import TextField from "../components/TextField";
-import SectionHeader from "../components/SectionHeader";
 import PressableScale from "../components/PressableScale";
+import IconButton from "../components/IconButton";
 import { useAppAlert } from "../components/AppAlert";
 
-// ─────────────────────────────────────
-// Helpers
-// ─────────────────────────────────────
 function getInitials(nome) {
   if (!nome) return "?";
   return nome
@@ -46,29 +42,33 @@ function getInitials(nome) {
 
 function getTipoLabel(tipoId) {
   switch (tipoId) {
-    case 1: return "Administrador";
-    case 2: return "Parceiro";
-    case 3: return "Visitante";
-    default: return "Usuário";
+    case 1:
+      return "Administrador";
+    case 2:
+      return "Parceiro";
+    case 3:
+      return "Visitante";
+    default:
+      return "Usuário";
   }
 }
 
 function getTipoColor(tipoId) {
   switch (tipoId) {
-    case 1: return "#f7a000";
-    case 2: return "#4a9eff";
-    default: return colors.primary;
+    case 1:
+      return colors.accent;
+    case 2:
+      return "#4a9eff";
+    default:
+      return colors.primary;
   }
 }
 
-// ─────────────────────────────────────
-// InfoRow — linha de dado do perfil
-// ─────────────────────────────────────
 function InfoRow({ icon, label, value }) {
   return (
     <View style={styles.infoRow}>
       <View style={styles.infoIconWrap}>
-        <Ionicons name={icon} size={18} color={colors.primary} />
+        <Ionicons name={icon} size={17} color={colors.accent} />
       </View>
       <View style={styles.infoTextWrap}>
         <Text style={styles.infoLabel}>{label}</Text>
@@ -78,22 +78,36 @@ function InfoRow({ icon, label, value }) {
   );
 }
 
-// ─────────────────────────────────────
-// StatBadge — número destacado
-// ─────────────────────────────────────
-function StatBadge({ count, label, icon }) {
+function ActionRow({ icon, label, subtitle, onPress, danger }) {
   return (
-    <View style={styles.statBadge}>
-      <Ionicons name={icon} size={20} color={colors.accent} />
-      <Text style={styles.statCount}>{count}</Text>
-      <Text style={styles.statLabel}>{label}</Text>
+    <PressableScale
+      onPress={onPress}
+      accessibilityLabel={label}
+      contentStyle={[styles.actionRow, danger && styles.actionRowDanger]}
+    >
+      <View style={[styles.actionIconWrap, danger && styles.actionIconDanger]}>
+        <Ionicons name={icon} size={20} color={danger ? colors.primary : colors.accent} />
+      </View>
+      <View style={styles.actionTextWrap}>
+        <Text style={[styles.actionLabel, danger && styles.actionLabelDanger]}>{label}</Text>
+        {subtitle ? <Text style={styles.actionSubtitle}>{subtitle}</Text> : null}
+      </View>
+      <Ionicons name="chevron-forward" size={18} color={colors.textSecondary} />
+    </PressableScale>
+  );
+}
+
+function EmptyFav({ text, icon }) {
+  return (
+    <View style={styles.emptyFav}>
+      <View style={styles.emptyIconWrap}>
+        <Ionicons name={icon} size={28} color={colors.accent} />
+      </View>
+      <Text style={styles.emptyFavText}>{text}</Text>
     </View>
   );
 }
 
-// ─────────────────────────────────────
-// Tela principal
-// ─────────────────────────────────────
 const AreaUsuario = () => {
   const navigation = useNavigation();
   const { user, signOut } = useAuth();
@@ -104,26 +118,25 @@ const AreaUsuario = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
-  // Campos de edição
   const [editMode, setEditMode] = useState(false);
   const [nome, setNome] = useState("");
   const [email, setEmail] = useState("");
   const [cpf, setCpf] = useState("");
   const [sexo, setSexo] = useState("");
 
-  // Favoritos
   const [favoritos, setFavoritos] = useState([]);
   const [rotasFavoritas, setRotasFavoritas] = useState([]);
   const [loadingFavoritos, setLoadingFavoritos] = useState(false);
 
-  // Detalhe de ponto / rota
   const [selectedPoint, setSelectedPoint] = useState(null);
   const [showPointDetail, setShowPointDetail] = useState(false);
   const [rotaSelecionada, setRotaSelecionada] = useState(null);
 
-  // ── Carregar perfil ──
   useEffect(() => {
-    if (!user?.id) { setLoading(false); return; }
+    if (!user?.id) {
+      setLoading(false);
+      return;
+    }
     (async () => {
       try {
         const { data, error } = await dbApi.getUserByAuthId(user.id);
@@ -135,11 +148,12 @@ const AreaUsuario = () => {
         setSexo(data.sexo || "");
         setTipoUsuarioId(data.tipo_usuario_id);
       } catch {}
-      finally { setLoading(false); }
+      finally {
+        setLoading(false);
+      }
     })();
   }, [user]);
 
-  // ── Carregar favoritos ──
   const fetchFavoritos = useCallback(async () => {
     if (!userInfo) return;
     setLoadingFavoritos(true);
@@ -147,7 +161,9 @@ const AreaUsuario = () => {
       const { data } = await dbApi.listFavoritos(userInfo.id);
       setFavoritos(data || []);
     } catch {}
-    finally { setLoadingFavoritos(false); }
+    finally {
+      setLoadingFavoritos(false);
+    }
   }, [userInfo]);
 
   const fetchRotasFavoritas = useCallback(async () => {
@@ -155,11 +171,17 @@ const AreaUsuario = () => {
     try {
       const { data: favData } = await dbApi.listFavoritos(userInfo.id);
       const pontoIds = (favData || []).map((f) => f.ponto_id);
-      if (pontoIds.length === 0) { setRotasFavoritas([]); return; }
+      if (pontoIds.length === 0) {
+        setRotasFavoritas([]);
+        return;
+      }
 
       const { data: rpData } = await dbApi.listRotaPontoByPontos(pontoIds);
       const rotaIds = [...new Set((rpData || []).map((r) => r.rota_id))];
-      if (rotaIds.length === 0) { setRotasFavoritas([]); return; }
+      if (rotaIds.length === 0) {
+        setRotasFavoritas([]);
+        return;
+      }
 
       const { data: allRotas } = await dbApi.listRotas();
       const filtradas = (allRotas || []).filter((r) => rotaIds.includes(r.id));
@@ -169,7 +191,7 @@ const AreaUsuario = () => {
           const { data: rp } = await dbApi.listRotaPontoByRota(rota.id);
           const primId = rp?.[0]?.ponto_id;
           const { data: pts } = await dbApi.getPontosByIds([primId]);
-          return { ...rota, imagem: pts?.[0]?.url_img || null };
+          return { ...rota, imagem: pts?.[0]?.url_img || null, pontoCount: rp?.length ?? 0 };
         })
       );
       setRotasFavoritas(completas);
@@ -188,7 +210,6 @@ const AreaUsuario = () => {
     }, [fetchFavoritos, fetchRotasFavoritas])
   );
 
-  // ── Salvar perfil ──
   const handleSave = async () => {
     if (!nome.trim()) {
       showAlert({
@@ -278,6 +299,7 @@ const AreaUsuario = () => {
     try {
       await dbApi.removeFavorito(userInfo.id, pontoId);
       fetchFavoritos();
+      fetchRotasFavoritas();
     } catch {
       showAlert({
         icon: "heart-dislike-outline",
@@ -289,13 +311,12 @@ const AreaUsuario = () => {
     }
   };
 
-  // ── Guards ──
   if (loading) {
     return (
       <LinearGradient {...gradients.appBg} style={styles.flex}>
-        <View style={styles.center}>
+        <SafeAreaView style={styles.center}>
           <ActivityIndicator size="large" color={colors.accent} />
-        </View>
+        </SafeAreaView>
       </LinearGradient>
     );
   }
@@ -303,15 +324,16 @@ const AreaUsuario = () => {
   if (!user) {
     return (
       <LinearGradient {...gradients.appBg} style={styles.flex}>
-        <View style={styles.center}>
-          <Ionicons name="person-circle-outline" size={64} color={colors.textSecondary} />
-          <Text style={[styles.sectionTitle, { marginTop: spacing.md }]}>
-            Não autenticado
-          </Text>
+        <SafeAreaView style={styles.center}>
+          <View style={styles.emptyIconWrap}>
+            <Ionicons name="person-circle-outline" size={48} color={colors.accent} />
+          </View>
+          <Text style={styles.emptyTitle}>Não autenticado</Text>
+          <Text style={styles.emptyBody}>Faça login para acessar seu perfil.</Text>
           <Button onPress={() => navigation.navigate("Perfil")} style={{ marginTop: spacing.md }}>
             Fazer login
           </Button>
-        </View>
+        </SafeAreaView>
       </LinearGradient>
     );
   }
@@ -324,8 +346,14 @@ const AreaUsuario = () => {
     return (
       <PointDetail
         point={selectedPoint}
-        onClose={() => { setShowPointDetail(false); setSelectedPoint(null); }}
-        onFavoriteToggle={() => { fetchFavoritos(); fetchRotasFavoritas(); }}
+        onClose={() => {
+          setShowPointDetail(false);
+          setSelectedPoint(null);
+        }}
+        onFavoriteToggle={() => {
+          fetchFavoritos();
+          fetchRotasFavoritas();
+        }}
       />
     );
   }
@@ -344,31 +372,69 @@ const AreaUsuario = () => {
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
           >
-            {/* ── Avatar + nome ── */}
-            <View style={styles.profileHeader}>
-              <View style={[styles.avatarCircle, { borderColor: tipoColor }]}>
-                <Text style={styles.avatarInitials}>{getInitials(userInfo?.nome)}</Text>
+            {/* Hero */}
+            <View style={styles.hero}>
+              <View style={styles.heroTitleRow}>
+                <View style={styles.heroIconWrap}>
+                  <Ionicons name="person" size={22} color={colors.accent} />
+                </View>
+                <Text style={styles.heroTitle}>Meu Perfil</Text>
               </View>
-              <Text style={styles.profileName}>{userInfo?.nome || "Usuário"}</Text>
-              <View style={[styles.tipoBadge, { backgroundColor: `${tipoColor}22`, borderColor: `${tipoColor}55` }]}>
-                <Text style={[styles.tipoText, { color: tipoColor }]}>
-                  {getTipoLabel(tipoUsuarioId)}
-                </Text>
-              </View>
+              <Text style={styles.heroSubtitle}>
+                Gerencie seus dados, favoritos e preferências da conta.
+              </Text>
+            </View>
 
-              {/* Stats */}
-              <View style={styles.statsRow}>
-                <StatBadge count={favoritos.length} label="Pontos" icon="location" />
-                <View style={styles.statDivider} />
-                <StatBadge count={rotasFavoritas.length} label="Rotas" icon="navigate" />
+            {/* Avatar card */}
+            <View style={styles.avatarCard}>
+              <LinearGradient
+                colors={[`${tipoColor}33`, "rgba(26,26,46,0.95)"]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.avatarBg}
+              >
+                <View style={[styles.avatarCircle, { borderColor: tipoColor }]}>
+                  <Text style={styles.avatarInitials}>{getInitials(userInfo?.nome)}</Text>
+                </View>
+                <Text style={styles.profileName}>{userInfo?.nome || "Usuário"}</Text>
+                <View
+                  style={[
+                    styles.tipoBadge,
+                    { backgroundColor: `${tipoColor}22`, borderColor: `${tipoColor}55` },
+                  ]}
+                >
+                  <Text style={[styles.tipoText, { color: tipoColor }]}>
+                    {getTipoLabel(tipoUsuarioId)}
+                  </Text>
+                </View>
+              </LinearGradient>
+            </View>
+
+            {/* Stats */}
+            <View style={styles.statsRow}>
+              <View style={styles.statCard}>
+                <Ionicons name="heart-outline" size={18} color={colors.accent} />
+                <Text style={styles.statValue}>{favoritos.length}</Text>
+                <Text style={styles.statLabel}>pontos</Text>
+              </View>
+              <View style={styles.statCard}>
+                <Ionicons name="navigate-outline" size={18} color={colors.accent} />
+                <Text style={styles.statValue}>{rotasFavoritas.length}</Text>
+                <Text style={styles.statLabel}>rotas</Text>
+              </View>
+              <View style={styles.statCard}>
+                <Ionicons name="ribbon-outline" size={18} color={colors.accent} />
+                <Text style={styles.statValue}>KapiPass</Text>
+                <Text style={styles.statLabel}>gamificação</Text>
               </View>
             </View>
 
-            {/* ── Card de informações / edição ── */}
+            {/* Informações / edição */}
             <View style={[styles.card, shadows.card]}>
-              <View style={styles.cardTitleRow}>
+              <View style={styles.cardHeader}>
+                <Text style={styles.cardEyebrow}>DADOS PESSOAIS</Text>
                 <Text style={styles.cardTitle}>
-                  {editMode ? "Editar perfil" : "Informações"}
+                  {editMode ? "Editar perfil" : "Informações da conta"}
                 </Text>
                 {!editMode ? (
                   <PressableScale
@@ -376,14 +442,13 @@ const AreaUsuario = () => {
                     accessibilityLabel="Editar perfil"
                     contentStyle={styles.editBtn}
                   >
-                    <Ionicons name="create-outline" size={18} color={colors.primary} />
+                    <Ionicons name="create-outline" size={16} color={colors.accent} />
                     <Text style={styles.editBtnText}>Editar</Text>
                   </PressableScale>
                 ) : null}
               </View>
 
               {editMode ? (
-                // ── Modo edição ──
                 <View style={styles.editForm}>
                   <TextField
                     value={nome}
@@ -436,7 +501,6 @@ const AreaUsuario = () => {
                   </View>
                 </View>
               ) : (
-                // ── Modo visualização ──
                 <View style={styles.infoList}>
                   <InfoRow icon="person-outline" label="Nome" value={userInfo?.nome} />
                   <View style={styles.rowDivider} />
@@ -449,66 +513,83 @@ const AreaUsuario = () => {
               )}
             </View>
 
-            {/* ── Ações ── */}
-            <View style={styles.actions}>
-              <Button
+            {/* Menu de ações */}
+            <Text style={styles.sectionTitle}>Atalhos</Text>
+            <View style={[styles.menuCard, shadows.card]}>
+              <ActionRow
                 icon="pricetags-outline"
+                label="Meus Cupons"
+                subtitle="Resgate e gerencie seus cupons"
                 onPress={() => navigation.navigate("Cupons")}
-                fullWidth
-              >
-                Meus Cupons
-              </Button>
-              <Button
+              />
+              <View style={styles.menuDivider} />
+              <ActionRow
                 icon="headset-outline"
+                label="Contato e Suporte"
+                subtitle="Fale conosco ou tire dúvidas"
                 onPress={() => navigation.navigate("Contato")}
-                fullWidth
-              >
-                Contato e Suporte
-              </Button>
-              <Button
+              />
+              <View style={styles.menuDivider} />
+              <ActionRow
                 icon="log-out-outline"
+                label="Sair da conta"
+                subtitle="Encerrar sessão neste dispositivo"
                 onPress={handleLogout}
-                fullWidth
-                style={styles.logoutBtn}
-              >
-                Sair da conta
-              </Button>
+                danger
+              />
             </View>
 
-            {/* ── Rotas favoritas ── */}
+            {/* Rotas favoritas */}
             <View style={styles.section}>
-              <SectionHeader
-                title="Rotas Favoritas"
-                subtitle={
-                  loadingFavoritos
-                    ? "Carregando…"
-                    : rotasFavoritas.length === 0
-                    ? "Nenhuma rota salva ainda"
-                    : `${rotasFavoritas.length} rota${rotasFavoritas.length !== 1 ? "s" : ""} salva${rotasFavoritas.length !== 1 ? "s" : ""}`
-                }
-              />
+              <Text style={styles.sectionTitle}>Rotas Favoritas</Text>
+              <Text style={styles.sectionSubtitle}>
+                {loadingFavoritos
+                  ? "Carregando…"
+                  : rotasFavoritas.length === 0
+                  ? "Nenhuma rota salva ainda"
+                  : `${rotasFavoritas.length} rota${rotasFavoritas.length !== 1 ? "s" : ""} salva${rotasFavoritas.length !== 1 ? "s" : ""}`}
+              </Text>
+
               {loadingFavoritos ? (
                 <ActivityIndicator color={colors.accent} style={{ marginTop: spacing.md }} />
               ) : rotasFavoritas.length === 0 ? (
-                <EmptyFav text="Favorita rotas na aba Rotas para vê-las aqui." icon="navigate-outline" />
+                <EmptyFav
+                  text="Favorite rotas na aba Rotas para vê-las aqui."
+                  icon="navigate-outline"
+                />
               ) : (
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.favRow}>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.favRow}
+                >
                   {rotasFavoritas.map((rota) => (
                     <PressableScale
                       key={rota.id}
                       onPress={() => setRotaSelecionada(rota)}
                       accessibilityLabel={`Rota ${rota.nome}`}
-                      contentStyle={styles.favCard}
+                      contentStyle={[styles.favCard, shadows.soft]}
                     >
                       {rota.imagem ? (
                         <Image source={{ uri: rota.imagem }} style={styles.favImg} />
                       ) : (
                         <View style={[styles.favImg, styles.favPlaceholder]}>
-                          <Ionicons name="map-outline" size={28} color={colors.accent} />
+                          <Ionicons name="map-outline" size={24} color={colors.accent} />
                         </View>
                       )}
-                      <LinearGradient colors={["transparent", "rgba(0,0,0,0.75)"]} style={styles.favGradient}>
-                        <Text style={styles.favName} numberOfLines={2}>{rota.nome}</Text>
+                      <LinearGradient
+                        colors={["transparent", "rgba(0,0,0,0.82)"]}
+                        style={styles.favGradient}
+                      >
+                        <Text style={styles.favEyebrow}>ROTEIRO</Text>
+                        <Text style={styles.favName} numberOfLines={2}>
+                          {rota.nome}
+                        </Text>
+                        {rota.pontoCount > 0 ? (
+                          <Text style={styles.favMeta}>
+                            {rota.pontoCount} {rota.pontoCount === 1 ? "parada" : "paradas"}
+                          </Text>
+                        ) : null}
                       </LinearGradient>
                     </PressableScale>
                   ))}
@@ -516,47 +597,62 @@ const AreaUsuario = () => {
               )}
             </View>
 
-            {/* ── Pontos favoritos ── */}
+            {/* Pontos favoritos */}
             <View style={styles.section}>
-              <SectionHeader
-                title="Pontos Favoritos"
-                subtitle={
-                  loadingFavoritos
-                    ? "Carregando…"
-                    : favoritos.length === 0
-                    ? "Nenhum ponto salvo ainda"
-                    : `${favoritos.length} ponto${favoritos.length !== 1 ? "s" : ""} salvo${favoritos.length !== 1 ? "s" : ""}`
-                }
-              />
+              <Text style={styles.sectionTitle}>Pontos Favoritos</Text>
+              <Text style={styles.sectionSubtitle}>
+                {loadingFavoritos
+                  ? "Carregando…"
+                  : favoritos.length === 0
+                  ? "Nenhum ponto salvo ainda"
+                  : `${favoritos.length} ponto${favoritos.length !== 1 ? "s" : ""} salvo${favoritos.length !== 1 ? "s" : ""}`}
+              </Text>
+
               {loadingFavoritos ? (
                 <ActivityIndicator color={colors.accent} style={{ marginTop: spacing.md }} />
               ) : favoritos.length === 0 ? (
-                <EmptyFav text="Favorita pontos turísticos para vê-los aqui." icon="location-outline" />
+                <EmptyFav
+                  text="Favorite pontos turísticos para vê-los aqui."
+                  icon="location-outline"
+                />
               ) : (
                 <View style={styles.pontosList}>
-                  {favoritos.map((favorito) => (
-                    <PressableScale
-                      key={favorito.id}
-                      onPress={() => handlePointPress(favorito)}
-                      accessibilityLabel={`Ponto ${favorito.pontos_turisticos?.nome}`}
-                      contentStyle={[styles.pontoCard, shadows.soft]}
-                    >
-                      <View style={styles.pontoIconWrap}>
-                        <Ionicons name="location" size={20} color={colors.primary} />
-                      </View>
-                      <Text style={styles.pontoName} numberOfLines={1}>
-                        {favorito.pontos_turisticos?.nome || "Ponto turístico"}
-                      </Text>
-                      <TouchableOpacity
-                        onPress={() => removeFavorito(favorito.ponto_id)}
-                        style={styles.removeFavBtn}
-                        accessibilityLabel="Remover dos favoritos"
-                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  {favoritos.map((favorito) => {
+                    const pt = favorito.pontos_turisticos;
+                    return (
+                      <PressableScale
+                        key={favorito.id}
+                        onPress={() => handlePointPress(favorito)}
+                        accessibilityLabel={`Ponto ${pt?.nome}`}
+                        contentStyle={[styles.pontoCard, shadows.card]}
                       >
-                        <Ionicons name="heart-dislike-outline" size={18} color={colors.textSecondary} />
-                      </TouchableOpacity>
-                    </PressableScale>
-                  ))}
+                        {pt?.url_img ? (
+                          <Image
+                            source={{ uri: pt.url_img }}
+                            style={styles.pontoThumb}
+                            resizeMode="cover"
+                          />
+                        ) : (
+                          <View style={styles.pontoIconWrap}>
+                            <Ionicons name="location" size={20} color={colors.accent} />
+                          </View>
+                        )}
+                        <View style={styles.pontoTextWrap}>
+                          <Text style={styles.pontoEyebrow}>PONTO TURÍSTICO</Text>
+                          <Text style={styles.pontoName} numberOfLines={1}>
+                            {pt?.nome || "Ponto turístico"}
+                          </Text>
+                        </View>
+                        <IconButton
+                          name="heart-dislike-outline"
+                          onPress={() => removeFavorito(favorito.ponto_id)}
+                          accessibilityLabel="Remover dos favoritos"
+                          color={colors.textSecondary}
+                          style={styles.removeFavBtn}
+                        />
+                      </PressableScale>
+                    );
+                  })}
                 </View>
               )}
             </View>
@@ -569,50 +665,81 @@ const AreaUsuario = () => {
   );
 };
 
-function EmptyFav({ text, icon }) {
-  return (
-    <View style={styles.emptyFav}>
-      <Ionicons name={icon} size={32} color={colors.textSecondary} />
-      <Text style={styles.emptyFavText}>{text}</Text>
-    </View>
-  );
-}
-
 export default AreaUsuario;
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
-  center: { flex: 1, alignItems: "center", justifyContent: "center", gap: spacing.md },
+  center: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: spacing.sm,
+    paddingHorizontal: layout.contentPadding,
+  },
   scrollContent: {
-    paddingTop: spacing.lg,
+    paddingHorizontal: layout.contentPadding,
+    paddingTop: spacing.md,
     paddingBottom: spacing.xxl,
   },
-
-  // ── Cabeçalho do perfil ──
-  profileHeader: {
+  hero: {
+    marginBottom: spacing.lg,
+  },
+  heroTitleRow: {
+    flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: layout.contentPadding,
-    paddingBottom: spacing.xl,
+    gap: spacing.xs,
+  },
+  heroIconWrap: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "rgba(247, 160, 0, 0.15)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  heroTitle: {
+    ...typography.hero,
+    fontSize: 22,
+  },
+  heroSubtitle: {
+    ...typography.body,
+    marginTop: spacing.xs,
+    lineHeight: 20,
+    marginLeft: 36 + spacing.xs,
+  },
+  avatarCard: {
+    borderRadius: radius.lg,
+    overflow: "hidden",
+    borderWidth: 1,
+    borderColor: "rgba(247, 160, 0, 0.3)",
+    marginBottom: spacing.md,
+    ...shadows.card,
+  },
+  avatarBg: {
+    alignItems: "center",
+    paddingVertical: spacing.lg,
+    paddingHorizontal: spacing.md,
     gap: spacing.sm,
   },
   avatarCircle: {
-    width: 88,
-    height: 88,
-    borderRadius: 44,
+    width: 80,
+    height: 80,
+    borderRadius: 40,
     borderWidth: 3,
-    backgroundColor: "rgba(200,51,73,0.18)",
+    backgroundColor: colors.cardBg,
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: spacing.xs,
+    ...shadows.accent,
   },
   avatarInitials: {
-    fontSize: 32,
+    fontSize: 28,
     fontWeight: "700",
     color: colors.text,
     letterSpacing: 1,
   },
   profileName: {
-    ...typography.hero,
+    ...typography.subtitle,
+    fontSize: 20,
     textAlign: "center",
   },
   tipoBadge: {
@@ -622,78 +749,86 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   tipoText: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: "700",
-    letterSpacing: 0.5,
+    letterSpacing: 0.6,
+    textTransform: "uppercase",
   },
   statsRow: {
     flexDirection: "row",
-    alignItems: "center",
-    marginTop: spacing.xs,
-    backgroundColor: "rgba(255,255,255,0.07)",
-    borderRadius: radius.lg,
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.xl,
-    gap: spacing.xl,
+    gap: spacing.sm,
+    marginBottom: spacing.lg,
   },
-  statBadge: {
+  statCard: {
+    flex: 1,
     alignItems: "center",
-    gap: spacing.xxs,
+    backgroundColor: colors.surfaceElevated,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
+    paddingVertical: spacing.sm,
+    gap: 2,
   },
-  statCount: {
+  statValue: {
     ...typography.subtitle,
-    fontSize: 20,
+    fontSize: 16,
+    color: colors.text,
+    textAlign: "center",
   },
   statLabel: {
     ...typography.caption,
-    fontSize: 11,
+    color: colors.textSecondary,
+    fontSize: 10,
+    textTransform: "lowercase",
   },
-  statDivider: {
-    width: 1,
-    height: 36,
-    backgroundColor: "rgba(255,255,255,0.15)",
-  },
-
-  // ── Card de informações ──
   card: {
-    marginHorizontal: layout.contentPadding,
-    marginBottom: spacing.md,
+    marginBottom: spacing.lg,
     backgroundColor: colors.cardBg,
     borderRadius: radius.lg,
     borderWidth: 1,
     borderColor: colors.borderSubtle,
     overflow: "hidden",
   },
-  cardTitleRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
+  cardHeader: {
     paddingHorizontal: spacing.md,
     paddingTop: spacing.md,
     paddingBottom: spacing.sm,
     borderBottomWidth: 1,
     borderBottomColor: colors.borderSubtle,
+    position: "relative",
+  },
+  cardEyebrow: {
+    ...typography.caption,
+    color: colors.accent,
+    letterSpacing: 1.2,
+    fontWeight: "700",
+    fontSize: 9,
+    marginBottom: spacing.xxs,
   },
   cardTitle: {
     ...typography.subtitle,
     fontSize: 15,
+    paddingRight: 72,
   },
   editBtn: {
+    position: "absolute",
+    top: spacing.md,
+    right: spacing.md,
     flexDirection: "row",
     alignItems: "center",
-    gap: spacing.xxs + 2,
-    backgroundColor: "rgba(200,51,73,0.12)",
+    gap: spacing.xxs,
+    backgroundColor: "rgba(247, 160, 0, 0.12)",
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.xxs + 2,
     borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: "rgba(247, 160, 0, 0.25)",
   },
   editBtnText: {
-    color: colors.primary,
-    fontSize: 13,
+    color: colors.accent,
+    fontSize: 12,
     fontWeight: "600",
   },
-
-  // ── Linhas de info (view mode) ──
   infoList: {
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
@@ -705,33 +840,31 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   infoIconWrap: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: "rgba(200,51,73,0.12)",
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: "rgba(247, 160, 0, 0.12)",
     alignItems: "center",
     justifyContent: "center",
   },
   infoTextWrap: { flex: 1 },
   infoLabel: {
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: "600",
     color: colors.textSecondary,
     textTransform: "uppercase",
-    letterSpacing: 0.5,
+    letterSpacing: 0.6,
     marginBottom: 2,
   },
   infoValue: {
     ...typography.subtitle,
-    fontSize: 15,
+    fontSize: 14,
   },
   rowDivider: {
     height: 1,
     backgroundColor: colors.borderSubtle,
-    marginLeft: 36 + spacing.sm,
+    marginLeft: 34 + spacing.sm,
   },
-
-  // ── Formulário de edição ──
   editForm: {
     padding: spacing.md,
     gap: spacing.xs,
@@ -743,45 +876,84 @@ const styles = StyleSheet.create({
   cancelBtn: {
     alignItems: "center",
     paddingVertical: spacing.sm,
-    marginTop: spacing.xxs,
   },
   cancelBtnText: {
     ...typography.body,
     color: colors.textSecondary,
   },
-
-  // ── Ações ──
-  actions: {
-    marginHorizontal: layout.contentPadding,
-    marginBottom: spacing.lg,
-    gap: spacing.sm,
-  },
-  logoutBtn: {
-    backgroundColor: "transparent",
-    borderWidth: 1,
-    borderColor: "rgba(200,51,73,0.4)",
-  },
-
-  // ── Seções favoritos ──
-  section: {
-    marginBottom: spacing.xl,
-    paddingHorizontal: layout.contentPadding,
-  },
   sectionTitle: {
     ...typography.subtitle,
+    fontSize: 16,
+    marginBottom: spacing.xxs,
   },
-
-  // Rotas favoritas (horizontal scroll)
+  sectionSubtitle: {
+    ...typography.caption,
+    color: colors.textSecondary,
+    marginBottom: spacing.sm,
+  },
+  menuCard: {
+    backgroundColor: colors.cardBg,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
+    marginBottom: spacing.xl,
+    overflow: "hidden",
+  },
+  menuDivider: {
+    height: 1,
+    backgroundColor: colors.borderSubtle,
+    marginLeft: 56,
+  },
+  actionRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: spacing.sm + 2,
+    paddingHorizontal: spacing.md,
+    gap: spacing.sm,
+  },
+  actionRowDanger: {},
+  actionIconWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: radius.md,
+    backgroundColor: "rgba(247, 160, 0, 0.12)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  actionIconDanger: {
+    backgroundColor: "rgba(200, 51, 73, 0.12)",
+  },
+  actionTextWrap: {
+    flex: 1,
+    gap: 2,
+  },
+  actionLabel: {
+    ...typography.subtitle,
+    fontSize: 15,
+  },
+  actionLabelDanger: {
+    color: colors.primary,
+  },
+  actionSubtitle: {
+    ...typography.caption,
+    color: colors.textSecondary,
+    fontSize: 11,
+  },
+  section: {
+    marginBottom: spacing.xl,
+  },
   favRow: {
     gap: spacing.sm,
-    paddingVertical: spacing.xs,
+    paddingVertical: spacing.xxs,
   },
   favCard: {
-    width: 150,
-    height: 110,
+    width: 160,
+    height: 120,
     borderRadius: radius.md,
     overflow: "hidden",
     backgroundColor: colors.surfaceElevated,
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
   },
   favImg: {
     width: "100%",
@@ -791,71 +963,113 @@ const styles = StyleSheet.create({
   favPlaceholder: {
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: colors.surfaceElevated,
   },
   favGradient: {
     position: "absolute",
     bottom: 0,
     left: 0,
     right: 0,
-    height: "55%",
+    height: "68%",
     justifyContent: "flex-end",
-    padding: spacing.xs,
+    padding: spacing.sm,
+    gap: 2,
+  },
+  favEyebrow: {
+    ...typography.caption,
+    color: colors.accent,
+    fontSize: 8,
+    fontWeight: "700",
+    letterSpacing: 1,
   },
   favName: {
     ...typography.caption,
     fontSize: 12,
     fontWeight: "700",
+    color: colors.text,
   },
-
-  // Pontos favoritos (lista vertical)
+  favMeta: {
+    ...typography.caption,
+    fontSize: 10,
+    color: colors.textMuted,
+  },
   pontosList: {
-    gap: spacing.xs,
+    gap: spacing.sm,
   },
   pontoCard: {
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: colors.cardBg,
-    borderRadius: radius.md,
+    borderRadius: radius.lg,
     borderWidth: 1,
     borderColor: colors.borderSubtle,
     borderLeftWidth: 3,
     borderLeftColor: colors.primary,
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.md,
+    padding: spacing.sm,
     gap: spacing.sm,
   },
+  pontoThumb: {
+    width: 52,
+    height: 52,
+    borderRadius: radius.md,
+    flexShrink: 0,
+  },
   pontoIconWrap: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: "rgba(200,51,73,0.12)",
+    width: 52,
+    height: 52,
+    borderRadius: radius.md,
+    backgroundColor: "rgba(200, 51, 73, 0.12)",
     alignItems: "center",
     justifyContent: "center",
+    flexShrink: 0,
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
+  },
+  pontoTextWrap: {
+    flex: 1,
+    gap: 2,
+  },
+  pontoEyebrow: {
+    ...typography.caption,
+    color: colors.accent,
+    fontSize: 9,
+    fontWeight: "700",
+    letterSpacing: 1,
   },
   pontoName: {
     ...typography.subtitle,
     fontSize: 14,
-    flex: 1,
   },
   removeFavBtn: {
     padding: spacing.xxs,
   },
-
-  // Empty state
   emptyFav: {
-    flexDirection: "row",
     alignItems: "center",
+    paddingVertical: spacing.lg,
     gap: spacing.sm,
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.sm,
-    backgroundColor: "rgba(255,255,255,0.04)",
-    borderRadius: radius.md,
-    marginTop: spacing.xs,
+  },
+  emptyIconWrap: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: colors.surfaceElevated,
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
+    alignItems: "center",
+    justifyContent: "center",
   },
   emptyFavText: {
     ...typography.body,
-    flex: 1,
     fontSize: 13,
+    textAlign: "center",
+    color: colors.textSecondary,
+    paddingHorizontal: spacing.md,
+  },
+  emptyTitle: {
+    ...typography.subtitle,
+    textAlign: "center",
+  },
+  emptyBody: {
+    ...typography.body,
+    textAlign: "center",
   },
 });

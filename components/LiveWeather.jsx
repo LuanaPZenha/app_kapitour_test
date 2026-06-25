@@ -27,7 +27,7 @@ function getBrasiliaParts() {
   return { hora: `${hh}:${mm}`, segundos: ss, dia, data };
 }
 
-export default function LiveWeather() {
+export default function LiveWeather({ onInfo }) {
   const [weather, setWeather] = useState(null);
   const [info, setInfo] = useState(null);
   const [status, setStatus] = useState("loading"); // loading | ok | error
@@ -36,13 +36,15 @@ export default function LiveWeather() {
   const fetchNow = useCallback(async () => {
     const data = await getWeatherByCity("Maricá");
     if (data) {
+      const newInfo = getCapybaraWeatherInfo(data);
       setWeather(data);
-      setInfo(getCapybaraWeatherInfo(data));
+      setInfo(newInfo);
       setStatus("ok");
+      onInfo?.(newInfo);
     } else {
       setStatus((prev) => (prev === "ok" ? "ok" : "error"));
     }
-  }, []);
+  }, [onInfo]);
 
   // Busca inicial + atualização periódica (a cada 10 min)
   useEffect(() => {

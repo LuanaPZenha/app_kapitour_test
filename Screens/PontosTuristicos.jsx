@@ -18,11 +18,76 @@ import { gradients } from "../theme/gradients";
 import { colors } from "../theme/colors";
 import { layout, radius, spacing } from "../theme/spacing";
 import { typography } from "../theme/typography";
-import SectionHeader from "../components/SectionHeader";
 import PontoListItem from "../components/PontoListItem";
 import PointDetail from "../components/PointDetail";
 import PressableScale from "../components/PressableScale";
 import { getIconForCategory } from "../utils/categoryIcons";
+
+function ListHeader({ total, categorias, categoriaId, onSelectCategoria }) {
+  const renderChip = (cat) => {
+    const active = categoriaId === cat.id;
+    const iconName = getIconForCategory(cat.nome);
+    return (
+      <PressableScale
+        key={cat.id}
+        onPress={() => onSelectCategoria(active ? null : cat.id)}
+        accessibilityLabel={`Filtrar por ${cat.nome}`}
+        accessibilityState={{ selected: active }}
+        contentStyle={[styles.chip, active && styles.chipActive]}
+      >
+        <Ionicons name={iconName} size={16} color={active ? colors.text : colors.accent} />
+        <Text style={[styles.chipText, active && styles.chipTextActive]}>{cat.nome}</Text>
+      </PressableScale>
+    );
+  };
+
+  return (
+    <View style={styles.hero}>
+      <View style={styles.heroTitleRow}>
+        <View style={styles.heroIconWrap}>
+          <Ionicons name="location" size={22} color={colors.accent} />
+        </View>
+        <Text style={styles.heroTitle}>Pontos Turísticos</Text>
+      </View>
+      <Text style={styles.heroSubtitle}>
+        Descubra praias, trilhas, patrimônio histórico e muito mais em Maricá.
+      </Text>
+
+      <View style={styles.statsBanner}>
+        <View style={styles.statsIconWrap}>
+          <Ionicons name="pin-outline" size={18} color={colors.accent} />
+        </View>
+        <Text style={styles.statsText}>
+          {total} {total === 1 ? "local encontrado" : "locais encontrados"} em Maricá
+        </Text>
+      </View>
+
+      <Text style={styles.filterLabel}>Filtrar por categoria</Text>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.chipsRow}
+      >
+        <PressableScale
+          onPress={() => onSelectCategoria(null)}
+          accessibilityLabel="Mostrar todos os pontos"
+          accessibilityState={{ selected: categoriaId === null }}
+          contentStyle={[styles.chip, categoriaId === null && styles.chipActive]}
+        >
+          <Ionicons
+            name="apps-outline"
+            size={16}
+            color={categoriaId === null ? colors.text : colors.accent}
+          />
+          <Text style={[styles.chipText, categoriaId === null && styles.chipTextActive]}>
+            Todos
+          </Text>
+        </PressableScale>
+        {categorias.map(renderChip)}
+      </ScrollView>
+    </View>
+  );
+}
 
 export default function PontosTuristicos() {
   const [categorias, setCategorias] = useState([]);
@@ -108,61 +173,9 @@ export default function PontosTuristicos() {
       .sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
   }, [pontos, pontoCategorias, categoriaId]);
 
-  const renderCategoria = (cat) => {
-    const active = categoriaId === cat.id;
-    const iconName = getIconForCategory(cat.nome);
-
-    return (
-      <PressableScale
-        key={cat.id}
-        onPress={() => setCategoriaId((prev) => (prev === cat.id ? null : cat.id))}
-        accessibilityLabel={`Filtrar por ${cat.nome}`}
-        accessibilityState={{ selected: active }}
-        contentStyle={[styles.chip, active && styles.chipActive]}
-      >
-        <Ionicons name={iconName} size={18} color={active ? colors.text : colors.inputText} />
-        <Text style={[styles.chipText, active && styles.chipTextActive]}>{cat.nome}</Text>
-      </PressableScale>
-    );
-  };
-
   return (
     <LinearGradient {...gradients.appBg} style={styles.flex}>
       <SafeAreaView style={styles.flex} edges={["top"]}>
-        <View style={styles.header}>
-          <SectionHeader
-            title="Pontos Turísticos"
-            subtitle={
-              loading
-                ? "Carregando pontos…"
-                : `${pontosFiltrados.length} ${pontosFiltrados.length === 1 ? "local encontrado" : "locais encontrados"} em Maricá`
-            }
-          />
-        </View>
-
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.chipsRow}
-        >
-          <PressableScale
-            onPress={() => setCategoriaId(null)}
-            accessibilityLabel="Mostrar todos os pontos"
-            accessibilityState={{ selected: categoriaId === null }}
-            contentStyle={[styles.chip, categoriaId === null && styles.chipActive]}
-          >
-            <Ionicons
-              name="apps-outline"
-              size={18}
-              color={categoriaId === null ? colors.text : colors.inputText}
-            />
-            <Text style={[styles.chipText, categoriaId === null && styles.chipTextActive]}>
-              Todos
-            </Text>
-          </PressableScale>
-          {categorias.map(renderCategoria)}
-        </ScrollView>
-
         {loading ? (
           <View style={styles.center}>
             <ActivityIndicator size="large" color={colors.accent} />
@@ -173,13 +186,26 @@ export default function PontosTuristicos() {
             keyExtractor={(item) => String(item.id)}
             contentContainerStyle={styles.listContent}
             showsVerticalScrollIndicator={false}
+            ListHeaderComponent={
+              <ListHeader
+                total={pontosFiltrados.length}
+                categorias={categorias}
+                categoriaId={categoriaId}
+                onSelectCategoria={setCategoriaId}
+              />
+            }
             refreshControl={
               <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} />
             }
             ListEmptyComponent={
               <View style={styles.empty}>
-                <Ionicons name="location-outline" size={40} color={colors.textSecondary} />
-                <Text style={styles.emptyText}>Nenhum ponto encontrado nesta categoria.</Text>
+                <View style={styles.emptyIconWrap}>
+                  <Ionicons name="location-outline" size={36} color={colors.accent} />
+                </View>
+                <Text style={styles.emptyTitle}>Nenhum ponto encontrado</Text>
+                <Text style={styles.emptyBody}>
+                  Tente outra categoria ou volte mais tarde.
+                </Text>
               </View>
             }
             renderItem={({ item }) => (
@@ -203,55 +229,129 @@ export default function PontosTuristicos() {
 }
 
 const styles = StyleSheet.create({
-  flex: {
+  flex: { flex: 1 },
+  center: {
     flex: 1,
-  },
-  header: {
-    paddingHorizontal: layout.contentPadding,
-    paddingTop: spacing.md,
-  },
-  chipsRow: {
-    paddingHorizontal: layout.contentPadding,
-    paddingBottom: spacing.sm,
-    gap: spacing.xs,
-  },
-  chip: {
-    flexDirection: "row",
     alignItems: "center",
-    gap: spacing.xs,
-    minHeight: layout.minTouchTarget,
-    paddingHorizontal: spacing.md,
-    borderRadius: radius.pill,
-    backgroundColor: "rgba(255,255,255,0.92)",
-    marginRight: spacing.xs,
-  },
-  chipActive: {
-    backgroundColor: colors.primary,
-  },
-  chipText: {
-    ...typography.caption,
-    color: colors.inputText,
-    fontWeight: "600",
-  },
-  chipTextActive: {
-    color: colors.text,
+    justifyContent: "center",
   },
   listContent: {
     paddingHorizontal: layout.contentPadding,
     paddingBottom: layout.minTouchTarget + spacing.xxl,
   },
-  center: {
-    flex: 1,
+  hero: {
+    paddingTop: spacing.md,
+    paddingBottom: spacing.md,
+  },
+  heroTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.xs,
+  },
+  heroIconWrap: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "rgba(247, 160, 0, 0.15)",
     alignItems: "center",
     justifyContent: "center",
+  },
+  heroTitle: {
+    ...typography.hero,
+    fontSize: 22,
+  },
+  heroSubtitle: {
+    ...typography.body,
+    marginTop: spacing.xs,
+    lineHeight: 20,
+    marginLeft: 36 + spacing.xs,
+  },
+  statsBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+    marginTop: spacing.md,
+    backgroundColor: colors.surfaceElevated,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+  },
+  statsIconWrap: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: "rgba(247, 160, 0, 0.12)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  statsText: {
+    ...typography.caption,
+    color: colors.textMuted,
+    fontWeight: "600",
+    flex: 1,
+  },
+  filterLabel: {
+    ...typography.caption,
+    color: colors.textSecondary,
+    marginTop: spacing.md,
+    marginBottom: spacing.xs,
+    textTransform: "uppercase",
+    letterSpacing: 0.8,
+    fontWeight: "600",
+  },
+  chipsRow: {
+    gap: spacing.xs,
+    paddingBottom: spacing.sm,
+  },
+  chip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.xs,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs + 2,
+    borderRadius: radius.pill,
+    backgroundColor: colors.surfaceElevated,
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
+    marginRight: spacing.xs,
+  },
+  chipActive: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  chipText: {
+    ...typography.caption,
+    color: colors.textMuted,
+    fontWeight: "600",
+  },
+  chipTextActive: {
+    color: colors.text,
   },
   empty: {
     alignItems: "center",
     justifyContent: "center",
     paddingTop: spacing.xxl,
     gap: spacing.sm,
+    paddingHorizontal: spacing.xl,
   },
-  emptyText: {
+  emptyIconWrap: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: colors.surfaceElevated,
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: spacing.xs,
+  },
+  emptyTitle: {
+    ...typography.subtitle,
+    textAlign: "center",
+  },
+  emptyBody: {
     ...typography.body,
     textAlign: "center",
   },

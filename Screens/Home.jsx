@@ -6,7 +6,6 @@ import {
   StyleSheet,
   ScrollView,
   Animated,
-  FlatList,
   Dimensions,
   Linking,
   StatusBar,
@@ -16,10 +15,13 @@ import { LinearGradient } from "expo-linear-gradient";
 import Button from "../components/Button";
 import Card from "../components/Card";
 import LiveWeather from "../components/LiveWeather";
+import WeatherTips from "../components/WeatherTips";
 import SectionHeader from "../components/SectionHeader";
+import PressableScale from "../components/PressableScale";
 import { gradients } from "../theme/gradients";
-import { spacing, layout } from "../theme/spacing";
+import { spacing, layout, radius } from "../theme/spacing";
 import { typography } from "../theme/typography";
+import { shadows } from "../theme/shadows";
 import ContainerImg from "../components/ContainerImg";
 import { Ionicons } from "@expo/vector-icons";
 import { colors } from "../theme/colors";
@@ -27,9 +29,15 @@ import { useNavigation } from "@react-navigation/native";
 
 const { width } = Dimensions.get("window");
 const CARD_WIDTH = width * 0.6;
-const CARD_NARROW = Math.min(width * 0.9, 360);
 const PARTNER_CARD_HEIGHT = 280;
 const PARTNER_LOGO_HEIGHT = 115;
+
+const QUICK_ACTIONS = [
+  { key: "mapa", label: "Mapa", icon: "map", route: "Mapa", tint: colors.primary },
+  { key: "rotas", label: "Rotas", icon: "navigate", route: "Rotas", tint: colors.accent },
+  { key: "pontos", label: "Pontos", icon: "location", route: "Pontos", tint: colors.primary },
+  { key: "kapi", label: "KapiPass", icon: "ribbon", route: "KapiPass", tint: colors.accent },
+];
 
 const PATROCINADORES = [
   {
@@ -58,6 +66,7 @@ const PATROCINADORES = [
 export default function Home() {
   const navigation = useNavigation();
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [weatherInfo, setWeatherInfo] = useState(null);
 
   const flatListRef = useRef(null);
   const scrollX = useRef(new Animated.Value(0)).current;
@@ -134,13 +143,44 @@ export default function Home() {
           </View>
 
           <View style={styles.content}>
+            {/* Atalhos rápidos */}
+            <View style={styles.quickRow}>
+              {QUICK_ACTIONS.map((action) => (
+                <PressableScale
+                  key={action.key}
+                  onPress={() => navigation.navigate(action.route)}
+                  accessibilityLabel={action.label}
+                  style={styles.quickTile}
+                >
+                  <View
+                    style={[
+                      styles.quickIconWrap,
+                      { borderColor: `${action.tint}55` },
+                    ]}
+                  >
+                    <Ionicons name={action.icon} size={24} color={action.tint} />
+                  </View>
+                  <Text style={styles.quickLabel} numberOfLines={1}>
+                    {action.label}
+                  </Text>
+                </PressableScale>
+              ))}
+            </View>
+
+            {/* KapiPass — card de destaque */}
             <View style={styles.section}>
               <SectionHeader
                 title="Seu KapiPass"
                 subtitle="Passaporte turístico gamificado: colete carimbos e suba de nível."
               />
-              <Card style={styles.narrowCard}>
-                <View style={styles.kapiHero}>
+              <View style={styles.featureCard}>
+                <LinearGradient
+                  colors={["rgba(200,51,73,0.28)", "rgba(26,26,46,0.96)"]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.featureBg}
+                >
+                  <Text style={styles.featureEyebrow}>PASSAPORTE DIGITAL</Text>
                   <View style={styles.kapiStampWrap}>
                     <Image
                       source={require("../assets/kapipass_carimbo.png")}
@@ -157,36 +197,21 @@ export default function Home() {
                       Abrir KapiPass
                     </Button>
                   </View>
-                </View>
-              </Card>
+                </LinearGradient>
+              </View>
             </View>
 
-            <View style={styles.section}>
-              <SectionHeader
-                title="Descubra no Mapa"
-                subtitle="Pontos turísticos próximos de você, por categoria."
-              />
-              <Card
-                title="Pontos turísticos próximos"
-                description="Abra o mapa e explore por categoria"
-                style={styles.narrowCard}
-              >
-                <Button icon="map" onPress={() => navigation.navigate("Mapa")} fullWidth>
-                  Abrir Mapa
-                </Button>
-              </Card>
-            </View>
-
+            {/* Previsão do tempo */}
             <View style={styles.section}>
               <SectionHeader
                 title="Previsão do Tempo"
                 subtitle="Clima de Maricá em tempo real, com a hora de Brasília."
               />
-              <View style={styles.narrowCard}>
-                <LiveWeather />
-              </View>
+              <LiveWeather onInfo={setWeatherInfo} />
+              <WeatherTips weatherInfo={weatherInfo} />
             </View>
 
+            {/* Parceiros */}
             <View style={styles.section}>
               <SectionHeader
                 title="Nossos Parceiros"
@@ -214,11 +239,25 @@ export default function Home() {
                     const offset = (CARD_WIDTH + spacing.md) * info.index;
                     flatListRef.current?.scrollToOffset({ offset, animated: true });
                   }}
+                  onMomentumScrollEnd={(e) => {
+                    const idx = Math.round(
+                      e.nativeEvent.contentOffset.x / (CARD_WIDTH + spacing.md)
+                    );
+                    setCurrentIndex(Math.max(0, Math.min(idx, PATROCINADORES.length - 1)));
+                  }}
                   onScroll={Animated.event(
                     [{ nativeEvent: { contentOffset: { x: scrollX } } }],
                     { useNativeDriver: true }
                   )}
                 />
+              </View>
+              <View style={styles.dotsRow}>
+                {PATROCINADORES.map((_, i) => (
+                  <View
+                    key={i}
+                    style={[styles.dot, i === currentIndex && styles.dotActive]}
+                  />
+                ))}
               </View>
             </View>
           </View>
@@ -279,37 +318,77 @@ const styles = StyleSheet.create({
   section: {
     marginBottom: spacing.xl,
   },
-  narrowCard: {
-    alignSelf: "center",
-    width: CARD_NARROW,
-    marginTop: spacing.sm,
+  // ── Atalhos rápidos ──
+  quickRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: spacing.xl,
   },
-  kapiHero: {
+  quickTile: {
+    flex: 1,
     alignItems: "center",
-    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.xxs,
+  },
+  quickIconWrap: {
+    width: 62,
+    height: 62,
+    borderRadius: 20,
+    backgroundColor: colors.surfaceElevated,
+    borderWidth: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    ...shadows.soft,
+  },
+  quickLabel: {
+    ...typography.caption,
+    color: colors.text,
+    marginTop: spacing.xs,
+    textAlign: "center",
+  },
+  // ── Card de destaque KapiPass ──
+  featureCard: {
+    width: "100%",
+    borderRadius: radius.lg,
+    overflow: "hidden",
+    borderWidth: 1,
+    borderColor: "rgba(247, 160, 0, 0.35)",
+    marginTop: spacing.sm,
+    ...shadows.card,
+  },
+  featureBg: {
+    alignItems: "center",
+    paddingVertical: spacing.lg,
+    paddingHorizontal: spacing.md,
     gap: spacing.sm,
   },
+  featureEyebrow: {
+    ...typography.caption,
+    color: colors.accent,
+    letterSpacing: 2,
+    fontWeight: "700",
+    marginBottom: spacing.xxs,
+  },
   kapiStampWrap: {
-    width: 132,
-    height: 132,
-    borderRadius: 66,
+    width: 124,
+    height: 124,
+    borderRadius: 62,
     padding: 4,
     backgroundColor: colors.cardBg,
     borderWidth: 2,
     borderColor: colors.accent,
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: spacing.xs,
+    ...shadows.accent,
   },
   kapiStamp: {
     width: "100%",
     height: "100%",
-    borderRadius: 62,
+    borderRadius: 58,
   },
   kapiTitle: {
     ...typography.subtitle,
     fontSize: 20,
-    color: colors.accent,
+    color: colors.text,
     textAlign: "center",
   },
   kapiDesc: {
@@ -321,12 +400,27 @@ const styles = StyleSheet.create({
     width: "100%",
     marginTop: spacing.xs,
   },
-  weatherCard: {
-    minHeight: 240,
-  },
+  // ── Carrossel de parceiros ──
   carouselContainer: {
     height: PARTNER_CARD_HEIGHT + spacing.md,
     marginTop: spacing.sm,
+  },
+  dotsRow: {
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    gap: spacing.xs,
+    marginTop: spacing.xs,
+  },
+  dot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+    backgroundColor: colors.border,
+  },
+  dotActive: {
+    width: 20,
+    backgroundColor: colors.accent,
   },
   footer: {
     padding: layout.contentPadding,
