@@ -8,6 +8,7 @@ import {
   RefreshControl,
   Animated,
   Easing,
+  Image,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
@@ -19,7 +20,6 @@ import { useFonts } from "expo-font";
 import { kapipassApi, dbApi } from "../lib/api";
 import { useAuth } from "../hooks/useAuth";
 import { useAppAlert } from "../components/AppAlert";
-import SectionHeader from "../components/SectionHeader";
 import Button from "../components/Button";
 import PressableScale from "../components/PressableScale";
 import StampCard, { KAPIPASS_STAMP } from "../components/StampCard";
@@ -41,6 +41,77 @@ function distancia(lat1, lon1, lat2, lon2) {
   return 2 * R * Math.asin(Math.sqrt(a));
 }
 
+function StatCard({ icon, valor, label }) {
+  return (
+    <View style={styles.statCard}>
+      <Ionicons name={icon} size={17} color={colors.accent} />
+      <Text style={styles.statValor} numberOfLines={1}>
+        {valor}
+      </Text>
+      <Text style={styles.statLabel} numberOfLines={2}>
+        {label}
+      </Text>
+    </View>
+  );
+}
+
+function MenuItem({ icon, label, subtitle, color = colors.accent, onPress }) {
+  return (
+    <PressableScale
+      onPress={onPress}
+      accessibilityLabel={label}
+      contentStyle={styles.menuItem}
+    >
+      <View
+        style={[
+          styles.menuIconWrap,
+          { backgroundColor: `${color}1a`, borderColor: `${color}55` },
+        ]}
+      >
+        <Ionicons name={icon} size={20} color={color} />
+      </View>
+      <View style={styles.menuTextWrap}>
+        <Text style={styles.menuLabel}>{label}</Text>
+        {subtitle ? <Text style={styles.menuSubtitle}>{subtitle}</Text> : null}
+      </View>
+      <Ionicons name="chevron-forward" size={18} color={colors.textSecondary} />
+    </PressableScale>
+  );
+}
+
+function SectionBlock({ title, subtitle, onSeeAll, children, empty }) {
+  return (
+    <View style={styles.section}>
+      <View style={styles.sectionHeader}>
+        <View style={styles.sectionTitleWrap}>
+          <Text style={styles.sectionTitle}>{title}</Text>
+          {subtitle ? <Text style={styles.sectionSubtitle}>{subtitle}</Text> : null}
+        </View>
+        {onSeeAll ? (
+          <PressableScale
+            onPress={onSeeAll}
+            accessibilityLabel={`Ver todos: ${title}`}
+            contentStyle={styles.seeAllBtn}
+          >
+            <Text style={styles.seeAllText}>Ver todos</Text>
+            <Ionicons name="chevron-forward" size={14} color={colors.accent} />
+          </PressableScale>
+        ) : null}
+      </View>
+      {empty ? (
+        <View style={styles.emptyBlock}>
+          <View style={styles.emptyIconWrap}>
+            <Ionicons name={empty.icon} size={26} color={colors.accent} />
+          </View>
+          <Text style={styles.emptyText}>{empty.text}</Text>
+        </View>
+      ) : (
+        children
+      )}
+    </View>
+  );
+}
+
 export default function KapiPassScreen() {
   const navigation = useNavigation();
   const { userInfo } = useAuth();
@@ -53,12 +124,10 @@ export default function KapiPassScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [checkingIn, setCheckingIn] = useState(false);
 
-  // Fonte Azonix apenas para o título do KapiPass (não afeta a Home)
   const [brandFontLoaded] = useFonts({
     Azonix: require("../assets/fonts/Azonix.otf"),
   });
 
-  // Animação da capivara no título (balanço + leve rotação)
   const capyAnim = useRef(new Animated.Value(0)).current;
   useEffect(() => {
     const loop = Animated.loop(
@@ -242,7 +311,8 @@ export default function KapiPassScreen() {
             />
           }
         >
-          <View style={styles.header}>
+          {/* Hero */}
+          <View style={styles.hero}>
             <View style={styles.heroTitleRow}>
               <View style={styles.heroIconWrap}>
                 <Ionicons name="compass" size={22} color={colors.accent} />
@@ -276,105 +346,186 @@ export default function KapiPassScreen() {
                 resizeMode="cover"
               />
             </View>
-            <Text style={styles.heroSubtitle}>Seu passaporte turístico gamificado</Text>
+            <Text style={styles.heroSubtitle}>
+              Seu passaporte turístico gamificado em Maricá
+            </Text>
           </View>
 
           {/* Cartão do passaporte */}
-          <LinearGradient {...gradients.redDiagonal} style={[styles.passport, shadows.elevated]}>
-            <View style={styles.passportTop}>
-              <View style={styles.avatar}>
-                <Text style={styles.avatarText}>{inicial}</Text>
-              </View>
-              <View style={styles.passportInfo}>
-                <Text style={styles.passportName} numberOfLines={1}>
-                  {nome}
-                </Text>
-                <View style={styles.levelBadge}>
-                  <Ionicons name="star" size={12} color={colors.accent} />
-                  <Text style={styles.levelText}>
-                    Nível {passaporte?.nivel?.atual} · {passaporte?.nivel?.nome}
+          <View style={styles.passportCard}>
+            <LinearGradient
+              colors={["rgba(200,51,73,0.32)", "rgba(26,26,46,0.97)"]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.passportBg}
+            >
+              <Text style={styles.passportEyebrow}>PASSAPORTE DIGITAL</Text>
+
+              <View style={styles.passportTop}>
+                <View style={styles.avatar}>
+                  <Text style={styles.avatarText}>{inicial}</Text>
+                </View>
+                <View style={styles.passportInfo}>
+                  <Text style={styles.passportName} numberOfLines={1}>
+                    {nome}
                   </Text>
+                  <View style={styles.levelBadge}>
+                    <Ionicons name="star" size={12} color={colors.accent} />
+                    <Text style={styles.levelText}>
+                      Nível {passaporte?.nivel?.atual} · {passaporte?.nivel?.nome}
+                    </Text>
+                  </View>
+                </View>
+                <View style={styles.stampWrap}>
+                  <Image source={KAPIPASS_STAMP} style={styles.stampImg} resizeMode="cover" />
                 </View>
               </View>
-            </View>
 
-            <View style={styles.xpRow}>
-              <Text style={styles.xpLabel}>{passaporte?.xp?.total || 0} XP</Text>
-              {passaporte?.nivel?.proximo_nome ? (
-                <Text style={styles.xpNext}>
-                  Próximo: {passaporte.nivel.proximo_nome} ({passaporte?.xp?.proximo_nivel} XP)
-                </Text>
-              ) : (
-                <Text style={styles.xpNext}>Nível máximo!</Text>
-              )}
-            </View>
-            <View style={styles.progressTrack}>
-              <View style={[styles.progressFill, { width: `${progressoNivel}%` }]} />
-            </View>
-          </LinearGradient>
+              <View style={styles.xpRow}>
+                <Text style={styles.xpLabel}>{passaporte?.xp?.total || 0} XP</Text>
+                {passaporte?.nivel?.proximo_nome ? (
+                  <Text style={styles.xpNext}>
+                    Próximo: {passaporte.nivel.proximo_nome} ({passaporte?.xp?.proximo_nivel} XP)
+                  </Text>
+                ) : (
+                  <Text style={styles.xpNext}>Nível máximo!</Text>
+                )}
+              </View>
+              <View style={styles.progressTrack}>
+                <View style={[styles.progressFill, { width: `${progressoNivel}%` }]} />
+              </View>
+            </LinearGradient>
+          </View>
 
           {/* Estatísticas */}
-          <View style={styles.statsGrid}>
+          <View style={styles.statsRow}>
             <StatCard
               icon="location"
               valor={passaporte?.locais_visitados || 0}
-              label="Locais visitados"
+              label="locais"
             />
             <StatCard
               icon="ribbon"
               valor={`${passaporte?.carimbos?.obtidos || 0}/${passaporte?.carimbos?.total || 0}`}
-              label="Carimbos"
+              label="carimbos"
             />
             <StatCard
               icon="trophy"
               valor={`${passaporte?.conquistas?.obtidas || 0}/${passaporte?.conquistas?.total || 0}`}
-              label="Conquistas"
+              label="conquistas"
             />
             <StatCard
               icon="trending-up"
               valor={`${passaporte?.progresso_geral || 0}%`}
-              label="Progresso geral"
+              label="progresso"
             />
           </View>
 
           {/* Check-in */}
-          <View style={styles.section}>
-            <Button icon="location" onPress={fazerCheckin} loading={checkingIn} fullWidth>
-              Fazer check-in agora
-            </Button>
-            <Text style={styles.checkinHint}>
-              Aproxime-se de um ponto turístico para coletar o carimbo e ganhar XP.
-            </Text>
+          <View style={styles.checkinCard}>
+            <LinearGradient
+              colors={["rgba(247,160,0,0.14)", "rgba(26,26,46,0.95)"]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.checkinBg}
+            >
+              <View style={styles.checkinIconWrap}>
+                <Ionicons name="location" size={28} color={colors.accent} />
+              </View>
+              <Text style={styles.checkinTitle}>Check-in no ponto turístico</Text>
+              <Text style={styles.checkinDesc}>
+                Aproxime-se de um local para coletar carimbos, ganhar XP e desbloquear conquistas.
+              </Text>
+              <Button icon="navigate" onPress={fazerCheckin} loading={checkingIn} fullWidth>
+                Fazer check-in agora
+              </Button>
+            </LinearGradient>
           </View>
 
-          {/* Acesso rápido */}
-          <View style={styles.section}>
-            <SectionHeader title="Explore" />
-            <View style={styles.menuGrid}>
-              <MenuItem icon="ribbon" label="Carimbos" color="#f5b301" onPress={() => navigation.navigate("Carimbos")} />
-              <MenuItem icon="trophy" label="Conquistas" color="#f7a000" onPress={() => navigation.navigate("Conquistas")} />
-              <MenuItem icon="albums" label="Coleções" color="#4a9eff" onPress={() => navigation.navigate("Colecoes")} />
-              <MenuItem icon="flag" label="Missões" color="#c83349" onPress={() => navigation.navigate("Missoes")} />
-              <MenuItem icon="leaf" label="EcoPass" color="#3ec97a" onPress={() => navigation.navigate("EcoPass")} />
-              <MenuItem icon="podium" label="Ranking" color="#9b6dff" onPress={() => navigation.navigate("Ranking")} />
-              <MenuItem icon="journal" label="Diário" color="#ff8a5c" onPress={() => navigation.navigate("Diario")} />
-              <MenuItem icon="map" label="Tesouros" color="#19c2c2" onPress={() => navigation.navigate("Tesouros")} />
-            </View>
-          </View>
-
-          {/* Carimbos */}
-          <View style={styles.section}>
-            <SectionHeader
-              title="Meus Carimbos"
-              action={
-                <Ionicons
-                  name="chevron-forward"
-                  size={22}
-                  color={colors.accent}
-                  onPress={() => navigation.navigate("Carimbos")}
-                />
-              }
+          {/* Explore */}
+          <Text style={styles.sectionTitle}>Explore</Text>
+          <Text style={styles.sectionSubtitle}>Todas as áreas do seu passaporte gamificado</Text>
+          <View style={[styles.menuCard, shadows.card]}>
+            <MenuItem
+              icon="ribbon"
+              label="Carimbos"
+              subtitle="Coleção de selos digitais"
+              color="#f5b301"
+              onPress={() => navigation.navigate("Carimbos")}
             />
+            <View style={styles.menuDivider} />
+            <MenuItem
+              icon="trophy"
+              label="Conquistas"
+              subtitle="Desafios e medalhas"
+              color="#f7a000"
+              onPress={() => navigation.navigate("Conquistas")}
+            />
+            <View style={styles.menuDivider} />
+            <MenuItem
+              icon="albums"
+              label="Coleções"
+              subtitle="Álbuns temáticos"
+              color="#4a9eff"
+              onPress={() => navigation.navigate("Colecoes")}
+            />
+            <View style={styles.menuDivider} />
+            <MenuItem
+              icon="flag"
+              label="Missões"
+              subtitle="Tarefas com recompensas"
+              color={colors.primary}
+              onPress={() => navigation.navigate("Missoes")}
+            />
+            <View style={styles.menuDivider} />
+            <MenuItem
+              icon="leaf"
+              label="EcoPass"
+              subtitle="Turismo sustentável"
+              color="#3ec97a"
+              onPress={() => navigation.navigate("EcoPass")}
+            />
+            <View style={styles.menuDivider} />
+            <MenuItem
+              icon="podium"
+              label="Ranking"
+              subtitle="Compare com outros viajantes"
+              color="#9b6dff"
+              onPress={() => navigation.navigate("Ranking")}
+            />
+            <View style={styles.menuDivider} />
+            <MenuItem
+              icon="journal"
+              label="Diário"
+              subtitle="Registre sua jornada"
+              color="#ff8a5c"
+              onPress={() => navigation.navigate("Diario")}
+            />
+            <View style={styles.menuDivider} />
+            <MenuItem
+              icon="map"
+              label="Tesouros"
+              subtitle="Caça ao tesouro"
+              color="#19c2c2"
+              onPress={() => navigation.navigate("Tesouros")}
+            />
+          </View>
+
+          {/* Carimbos preview */}
+          <SectionBlock
+            title="Meus Carimbos"
+            subtitle={
+              carimbos.length
+                ? `${passaporte?.carimbos?.obtidos || 0} de ${passaporte?.carimbos?.total || carimbos.length} obtidos`
+                : "Nenhum carimbo ainda"
+            }
+            onSeeAll={() => navigation.navigate("Carimbos")}
+            empty={
+              carimbosPreview.length === 0
+                ? { icon: "ribbon-outline", text: "Faça check-in nos pontos para coletar carimbos." }
+                : null
+            }
+          >
             <View style={styles.stampRow}>
               {carimbosPreview.map((c) => (
                 <View key={c.id} style={styles.stampCol}>
@@ -382,63 +533,32 @@ export default function KapiPassScreen() {
                 </View>
               ))}
             </View>
-          </View>
+          </SectionBlock>
 
-          {/* Conquistas */}
-          <View style={styles.section}>
-            <SectionHeader
-              title="Conquistas"
-              action={
-                <Ionicons
-                  name="chevron-forward"
-                  size={22}
-                  color={colors.accent}
-                  onPress={() => navigation.navigate("Conquistas")}
-                />
-              }
-            />
+          {/* Conquistas preview */}
+          <SectionBlock
+            title="Conquistas"
+            subtitle={
+              conquistas.length
+                ? `${passaporte?.conquistas?.obtidas || 0} de ${passaporte?.conquistas?.total || conquistas.length} desbloqueadas`
+                : "Nenhuma conquista ainda"
+            }
+            onSeeAll={() => navigation.navigate("Conquistas")}
+            empty={
+              conquistasPreview.length === 0
+                ? { icon: "trophy-outline", text: "Explore Maricá para desbloquear conquistas." }
+                : null
+            }
+          >
             <View style={styles.conqList}>
               {conquistasPreview.map((c) => (
                 <AchievementCard key={c.id} conquista={c} />
               ))}
             </View>
-          </View>
+          </SectionBlock>
         </ScrollView>
       </SafeAreaView>
     </LinearGradient>
-  );
-}
-
-function StatCard({ icon, valor, label }) {
-  return (
-    <View style={styles.statCard}>
-      <Ionicons name={icon} size={22} color={colors.accent} />
-      <Text style={styles.statValor}>{valor}</Text>
-      <Text style={styles.statLabel}>{label}</Text>
-    </View>
-  );
-}
-
-function MenuItem({ icon, label, color = colors.accent, onPress }) {
-  return (
-    <PressableScale
-      onPress={onPress}
-      accessibilityLabel={label}
-      contentStyle={styles.menuItem}
-    >
-      <View
-        style={[
-          styles.menuIconWrap,
-          { backgroundColor: `${color}1f`, borderColor: `${color}66` },
-        ]}
-      >
-        <Ionicons name={icon} size={22} color={color} />
-      </View>
-      <Text style={styles.menuLabel} numberOfLines={1}>
-        {label}
-      </Text>
-      <Ionicons name="chevron-forward" size={18} color={colors.textSecondary} />
-    </PressableScale>
   );
 }
 
@@ -450,8 +570,8 @@ const styles = StyleSheet.create({
     paddingTop: spacing.md,
     paddingBottom: layout.minTouchTarget + spacing.xxl,
   },
-  header: {
-    marginBottom: spacing.sm,
+  hero: {
+    marginBottom: spacing.lg,
   },
   heroTitleRow: {
     flexDirection: "row",
@@ -487,10 +607,23 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     marginLeft: 36 + spacing.xs,
   },
-  passport: {
-    borderRadius: radius.lg + 4,
+  passportCard: {
+    borderRadius: radius.lg,
+    overflow: "hidden",
+    borderWidth: 1,
+    borderColor: "rgba(247, 160, 0, 0.35)",
+    marginBottom: spacing.md,
+    ...shadows.elevated,
+  },
+  passportBg: {
     padding: spacing.lg,
-    marginBottom: spacing.lg,
+  },
+  passportEyebrow: {
+    ...typography.caption,
+    color: colors.accent,
+    letterSpacing: 2,
+    fontWeight: "700",
+    marginBottom: spacing.sm,
   },
   passportTop: {
     flexDirection: "row",
@@ -498,24 +631,25 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   avatar: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: "rgba(255,255,255,0.18)",
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: "rgba(255,255,255,0.12)",
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 2,
-    borderColor: "rgba(255,255,255,0.35)",
+    borderColor: "rgba(255,255,255,0.3)",
   },
   avatarText: {
     ...typography.hero,
-    fontSize: 26,
+    fontSize: 22,
   },
   passportInfo: {
     flex: 1,
   },
   passportName: {
-    ...typography.title,
+    ...typography.subtitle,
+    fontSize: 18,
     color: colors.text,
   },
   levelBadge: {
@@ -524,7 +658,7 @@ const styles = StyleSheet.create({
     gap: 4,
     marginTop: 4,
     alignSelf: "flex-start",
-    backgroundColor: "rgba(0,0,0,0.25)",
+    backgroundColor: "rgba(0,0,0,0.28)",
     paddingVertical: 3,
     paddingHorizontal: spacing.xs,
     borderRadius: radius.round,
@@ -533,108 +667,222 @@ const styles = StyleSheet.create({
     ...typography.caption,
     color: colors.text,
     fontWeight: "600",
+    fontSize: 11,
+  },
+  stampWrap: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    borderWidth: 2,
+    borderColor: colors.accent,
+    overflow: "hidden",
+    backgroundColor: colors.cardBg,
+  },
+  stampImg: {
+    width: "100%",
+    height: "100%",
   },
   xpRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "flex-end",
     marginTop: spacing.md,
+    gap: spacing.sm,
   },
   xpLabel: {
     ...typography.subtitle,
     color: colors.text,
+    fontSize: 18,
   },
   xpNext: {
     ...typography.caption,
-    color: "rgba(255,255,255,0.85)",
+    color: colors.textMuted,
+    flex: 1,
+    textAlign: "right",
+    fontSize: 11,
   },
   progressTrack: {
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: "rgba(0,0,0,0.3)",
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: "rgba(0,0,0,0.35)",
     overflow: "hidden",
-    marginTop: spacing.xs,
+    marginTop: spacing.sm,
   },
   progressFill: {
     height: "100%",
     backgroundColor: colors.accent,
-    borderRadius: 5,
+    borderRadius: 4,
   },
-  statsGrid: {
+  statsRow: {
     flexDirection: "row",
-    flexWrap: "wrap",
-    gap: spacing.sm,
+    gap: spacing.xs,
     marginBottom: spacing.lg,
   },
   statCard: {
-    flexGrow: 1,
-    flexBasis: "47%",
-    backgroundColor: colors.cardBg,
-    borderRadius: radius.lg,
+    flex: 1,
+    alignItems: "center",
+    backgroundColor: colors.surfaceElevated,
+    borderRadius: radius.md,
     borderWidth: 1,
     borderColor: colors.borderSubtle,
-    padding: spacing.md,
-    alignItems: "center",
-    gap: 4,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.xxs,
+    gap: 2,
   },
   statValor: {
-    ...typography.title,
+    ...typography.subtitle,
+    fontSize: 14,
     color: colors.text,
+    textAlign: "center",
   },
   statLabel: {
     ...typography.caption,
     color: colors.textSecondary,
+    fontSize: 9,
     textAlign: "center",
+    textTransform: "lowercase",
   },
-  section: {
-    marginBottom: spacing.lg,
+  checkinCard: {
+    borderRadius: radius.lg,
+    overflow: "hidden",
+    borderWidth: 1,
+    borderColor: "rgba(247, 160, 0, 0.3)",
+    marginBottom: spacing.xl,
+    ...shadows.card,
   },
-  menuGrid: {
-    marginTop: spacing.sm,
+  checkinBg: {
+    alignItems: "center",
+    padding: spacing.lg,
     gap: spacing.sm,
   },
-  menuItem: {
-    width: "100%",
-    flexDirection: "row",
+  checkinIconWrap: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: "rgba(247, 160, 0, 0.15)",
     alignItems: "center",
-    gap: spacing.md,
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.md,
+    justifyContent: "center",
+    marginBottom: spacing.xxs,
+  },
+  checkinTitle: {
+    ...typography.subtitle,
+    fontSize: 17,
+    textAlign: "center",
+  },
+  checkinDesc: {
+    ...typography.body,
+    fontSize: 13,
+    textAlign: "center",
+    color: colors.textSecondary,
+    marginBottom: spacing.xs,
+  },
+  sectionTitle: {
+    ...typography.subtitle,
+    fontSize: 16,
+    marginBottom: spacing.xxs,
+  },
+  sectionSubtitle: {
+    ...typography.caption,
+    color: colors.textSecondary,
+    marginBottom: spacing.sm,
+  },
+  menuCard: {
     backgroundColor: colors.cardBg,
-    borderRadius: radius.md,
+    borderRadius: radius.lg,
     borderWidth: 1,
     borderColor: colors.borderSubtle,
+    marginBottom: spacing.xl,
+    overflow: "hidden",
+  },
+  menuDivider: {
+    height: 1,
+    backgroundColor: colors.borderSubtle,
+    marginLeft: 68,
+  },
+  menuItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: spacing.sm + 2,
+    paddingHorizontal: spacing.md,
+    gap: spacing.sm,
   },
   menuIconWrap: {
-    width: 46,
-    height: 46,
+    width: 40,
+    height: 40,
     borderRadius: radius.md,
     borderWidth: 1,
     alignItems: "center",
     justifyContent: "center",
   },
+  menuTextWrap: {
+    flex: 1,
+    gap: 2,
+  },
   menuLabel: {
     ...typography.subtitle,
     fontSize: 15,
-    color: colors.text,
-    flex: 1,
   },
-  checkinHint: {
+  menuSubtitle: {
     ...typography.caption,
     color: colors.textSecondary,
-    textAlign: "center",
-    marginTop: spacing.xs,
+    fontSize: 11,
+  },
+  section: {
+    marginBottom: spacing.xl,
+  },
+  sectionHeader: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+    marginBottom: spacing.sm,
+    gap: spacing.sm,
+  },
+  sectionTitleWrap: {
+    flex: 1,
+  },
+  seeAllBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 2,
+    paddingTop: 2,
+  },
+  seeAllText: {
+    ...typography.caption,
+    color: colors.accent,
+    fontWeight: "600",
   },
   stampRow: {
     flexDirection: "row",
     gap: spacing.xs,
-    marginTop: spacing.xs,
   },
   stampCol: {
     flex: 1,
   },
   conqList: {
     gap: spacing.sm,
-    marginTop: spacing.xs,
+  },
+  emptyBlock: {
+    alignItems: "center",
+    paddingVertical: spacing.lg,
+    gap: spacing.sm,
+    backgroundColor: colors.surfaceElevated,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
+  },
+  emptyIconWrap: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: "rgba(247, 160, 0, 0.12)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  emptyText: {
+    ...typography.body,
+    fontSize: 13,
+    color: colors.textSecondary,
+    textAlign: "center",
+    paddingHorizontal: spacing.lg,
   },
 });
