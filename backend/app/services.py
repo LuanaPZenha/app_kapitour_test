@@ -49,38 +49,6 @@ class AuthService:
             "user": UsuarioResponse.model_validate(user),
         }
 
-    def google_login_or_register(self, id_token: str) -> dict:
-        import json
-        import os
-        import urllib.request
-
-        url = f"https://oauth2.googleapis.com/tokeninfo?id_token={id_token}"
-        try:
-            with urllib.request.urlopen(url, timeout=10) as resp:
-                info = json.loads(resp.read().decode())
-        except Exception:
-            raise ValueError("Token Google inválido ou expirado.")
-
-        email = info.get("email")
-        name = info.get("name") or (email.split("@")[0] if email else "Usuário")
-
-        if not email:
-            raise ValueError("Não foi possível obter o email da conta Google.")
-
-        user = self.users.get_by_email(email)
-        if not user:
-            user = self.users.create(
-                nome=name,
-                email=email,
-                password=os.urandom(32).hex(),
-                tipo_usuario_id=3,
-            )
-
-        token = create_access_token(user.auth_id, user.id)
-        return {
-            "access_token": token,
-            "user": UsuarioResponse.model_validate(user),
-        }
 
 
 class UserService:

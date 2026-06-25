@@ -25,17 +25,16 @@
       "bundleIdentifier": "com.barralbruno.kapitest"
     },
     "extra": {
-      "clerkRedirectUri": "kapitest://",
       "eas": {
-        "projectId": "1c04ed39-975c-417e-b008-1f0d108d6665"
-      }
+        "projectId": "31953773-dd59-4e17-8456-752f2924985e"
+      },
+      "clerkRedirectUri": "kapitest://"
     },
-    "owner": "kapitour",
+    "owner": "barralbruno",
     "plugins": [
       "expo-maps",
       "expo-font",
       "expo-web-browser",
-      "@react-native-google-signin/google-signin",
       [
         "expo-camera",
         {

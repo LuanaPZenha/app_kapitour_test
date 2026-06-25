@@ -24,7 +24,6 @@ from app.schemas import (
     EstoqueResponse,
     FavoritoCreate,
     FavoritoResponse,
-    GoogleLoginRequest,
     LoginRequest,
     MessageResponse,
     PontoAvaliacaoCreate,
@@ -88,15 +87,6 @@ def register(payload: RegisterRequest, db: Session = Depends(get_db)):
 def login(payload: LoginRequest, db: Session = Depends(get_db)):
     try:
         result = AuthService(db).login(payload.email, payload.password)
-        return TokenResponse(access_token=result["access_token"], user=result["user"])
-    except ValueError as exc:
-        raise HTTPException(status_code=401, detail=str(exc)) from exc
-
-
-@router.post("/auth/google-login", response_model=TokenResponse)
-def google_login(payload: GoogleLoginRequest, db: Session = Depends(get_db)):
-    try:
-        result = AuthService(db).google_login_or_register(payload.id_token)
         return TokenResponse(access_token=result["access_token"], user=result["user"])
     except ValueError as exc:
         raise HTTPException(status_code=401, detail=str(exc)) from exc

@@ -15,10 +15,6 @@ class LoginRequest(BaseModel):
     password: str
 
 
-class GoogleLoginRequest(BaseModel):
-    id_token: str
-
-
 class RegisterRequest(BaseModel):
     nome: str
     email: EmailStr

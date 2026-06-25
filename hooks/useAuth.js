@@ -49,20 +49,6 @@ export function AuthProvider({ children }) {
     }
   };
 
-  const signInWithGoogle = async (idToken) => {
-    try {
-      const { data, error } = await authApi.googleLogin(idToken);
-      if (error) throw new Error(error.message);
-
-      const sessionUser = { id: data.user.auth_id, email: data.user.email };
-      setUser(sessionUser);
-      setUserInfo(data.user);
-      return { success: true, user: sessionUser };
-    } catch (err) {
-      return { success: false, error: err.message };
-    }
-  };
-
   const signOut = async () => {
     try {
       await authApi.signOut();
@@ -80,7 +66,6 @@ export function AuthProvider({ children }) {
     isLogged: userInfo !== null,
     loading,
     signIn,
-    signInWithGoogle,
     signOut,
   };
 
