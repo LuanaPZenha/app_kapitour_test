@@ -15,6 +15,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import Button from "../components/Button";
 import Card from "../components/Card";
+import LiveWeather from "../components/LiveWeather";
 import SectionHeader from "../components/SectionHeader";
 import { gradients } from "../theme/gradients";
 import { spacing, layout } from "../theme/spacing";
@@ -179,21 +180,11 @@ export default function Home() {
             <View style={styles.section}>
               <SectionHeader
                 title="Previsão do Tempo"
-                subtitle="Planeje seu passeio com o clima atualizado de Maricá."
+                subtitle="Clima de Maricá em tempo real, com a hora de Brasília."
               />
-              <Card
-                imageUrl="https://github.com/Kapitour/Imgs-Padr-o/blob/main/KapiTempo/MASCULINO/AMENO%20-%20ENSOLARADO.png?raw=true"
-                imageFit="overlay"
-                imageHeight={240}
-                imageOpacity={0.52}
-                title="Clima em Maricá"
-                description="Consulte a previsão do tempo e dicas para seu passeio!"
-                style={[styles.narrowCard, styles.weatherCard]}
-              >
-                <Button icon="sunny-outline" onPress={() => navigation.navigate("Clima")} fullWidth>
-                  Ver clima
-                </Button>
-              </Card>
+              <View style={styles.narrowCard}>
+                <LiveWeather />
+              </View>
             </View>
 
             <View style={styles.section}>

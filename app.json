@@ -12,6 +12,7 @@
     "favicon": "./assets/favicon.png",
     "android": {
       "package": "com.barralbruno.kapitest",
+      "usesCleartextTraffic": true,
       "adaptiveIcon": {
         "foregroundImage": "./assets/icon.png",
         "backgroundColor": "#c83349"
@@ -25,14 +26,13 @@
       "bundleIdentifier": "com.barralbruno.kapitest"
     },
     "extra": {
+      "clerkRedirectUri": "kapitest://",
       "eas": {
-        "projectId": "31953773-dd59-4e17-8456-752f2924985e"
-      },
-      "clerkRedirectUri": "kapitest://"
+        "projectId": "1c04ed39-975c-417e-b008-1f0d108d6665"
+      }
     },
-    "owner": "barralbruno",
+    "owner": "kapitour",
     "plugins": [
-      "expo-maps",
       "expo-font",
       "expo-web-browser",
       [

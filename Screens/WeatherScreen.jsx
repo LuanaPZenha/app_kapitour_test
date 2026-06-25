@@ -20,7 +20,7 @@ import { getWeatherByCity } from "./weatherApi.js";
 // ✅ 1. SISTEMA DE CLASSIFICAÇÃO DO CLIMA PARA CAPIVARAS
 // Esta função analisa os dados do clima e retorna a classificação e imagem da capivara
 // ===================================================================
-const getCapybaraWeatherInfo = (weatherData) => {
+export const getCapybaraWeatherInfo = (weatherData) => {
   // Classificação de temperatura
   const temperature = Math.round(weatherData.main.temp);
   let tempCategory;
@@ -204,7 +204,7 @@ const getWeatherTitle = (tempCategory, weatherCondition, isWindy) => {
   return title;
 };
 
-const getAccentColor = (weatherCondition, tempCategory) => {
+export const getAccentColor = (weatherCondition, tempCategory) => {
   if (weatherCondition === "ensolarado") return "#f7a000";
   if (weatherCondition === "nublado") return "#8bb0ff";
   if (weatherCondition === "chuvoso") return "#3da5d9";

@@ -1,4 +1,5 @@
 <resources>
   <string name="app_name">Kapitour</string>
-  <string name="server_client_id">987853857968-8gorgoregm4h6toveodo1nlergfjjkcs.apps.googleusercontent.com</string>
+  <string name="expo_splash_screen_resize_mode" translatable="false">contain</string>
+  <string name="expo_splash_screen_status_bar_translucent" translatable="false">false</string>
 </resources>
