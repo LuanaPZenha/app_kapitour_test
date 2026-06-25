@@ -33,6 +33,28 @@ import Button from "../components/Button";
 import { useAppAlert } from "../components/AppAlert";
 
 // ─────────────────────────────────────────
+// Cabeçalho com botão de voltar
+// ─────────────────────────────────────────
+function HeaderBack({ children }) {
+  const navigation = useNavigation();
+  return (
+    <View style={styles.header}>
+      <View style={styles.headerRow}>
+        <TouchableOpacity
+          style={styles.backBtn}
+          onPress={() => navigation.goBack()}
+          accessibilityLabel="Voltar"
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        >
+          <Ionicons name="chevron-back" size={24} color={colors.text} />
+        </TouchableOpacity>
+        <View style={styles.flex}>{children}</View>
+      </View>
+    </View>
+  );
+}
+
+// ─────────────────────────────────────────
 // Card de cupom individual
 // ─────────────────────────────────────────
 function CupomCard({ nome, validade, resgatado = false, disponivel = false }) {
@@ -167,9 +189,9 @@ export default function Cupons() {
     return (
       <LinearGradient {...gradients.appBg} style={styles.flex}>
         <SafeAreaView style={styles.flex} edges={["top"]}>
-          <View style={styles.header}>
+          <HeaderBack>
             <SectionHeader title="Cupons" subtitle="Promoções e benefícios exclusivos." />
-          </View>
+          </HeaderBack>
           <View style={styles.guestWrap}>
             <View style={styles.guestIconWrap}>
               <Ionicons name="pricetags-outline" size={52} color={colors.accent} />
@@ -197,9 +219,9 @@ export default function Cupons() {
     return (
       <LinearGradient {...gradients.appBg} style={styles.flex}>
         <SafeAreaView style={styles.flex} edges={["top"]}>
-          <View style={styles.header}>
+          <HeaderBack>
             <SectionHeader title="Cupons" />
-          </View>
+          </HeaderBack>
           <View style={styles.center}>
             <ActivityIndicator size="large" color={colors.accent} />
           </View>
@@ -236,12 +258,12 @@ export default function Cupons() {
     return (
       <LinearGradient {...gradients.appBg} style={styles.flex}>
         <SafeAreaView style={styles.flex} edges={["top"]}>
-          <View style={styles.header}>
+          <HeaderBack>
             <SectionHeader
               title="Cupons"
               subtitle={`${campanhas.length} campanha${campanhas.length !== 1 ? "s" : ""} cadastrada${campanhas.length !== 1 ? "s" : ""}`}
             />
-          </View>
+          </HeaderBack>
           <FlatList
             data={campanhas}
             keyExtractor={(item) => String(item.id)}
@@ -322,12 +344,12 @@ export default function Cupons() {
   return (
     <LinearGradient {...gradients.appBg} style={styles.flex}>
       <SafeAreaView style={styles.flex} edges={["top"]}>
-        <View style={styles.header}>
+        <HeaderBack>
           <SectionHeader
             title="Meus Cupons"
             subtitle="Promoções e benefícios exclusivos para você."
           />
-        </View>
+        </HeaderBack>
         <FlatList
           data={sections}
           keyExtractor={(item) => item.key}
@@ -415,6 +437,19 @@ const styles = StyleSheet.create({
   header: {
     paddingHorizontal: layout.contentPadding,
     paddingTop: spacing.md,
+  },
+  headerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.xs,
+  },
+  backBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(255,255,255,0.06)",
   },
   subHeader: {
     marginTop: spacing.lg,

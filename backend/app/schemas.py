@@ -201,3 +201,47 @@ class MessageResponse(BaseModel):
     message: str | None = None
     error: str | None = None
     data: Any | None = None
+
+
+# ─────────────────────────────────────────────────────────────
+# KapiPass — Passaporte Turístico Gamificado
+# ─────────────────────────────────────────────────────────────
+
+
+class NivelResponse(BaseModel):
+    id: int
+    nome: str
+    xp_minimo: int
+    ordem: int
+
+    class Config:
+        from_attributes = True
+
+
+class CheckinRequest(BaseModel):
+    ponto_turistico_id: int
+    latitude: float | None = None
+    longitude: float | None = None
+
+
+class CheckinResponse(BaseModel):
+    id: int
+    usuario_id: int
+    ponto_turistico_id: int
+    data_checkin: datetime
+    latitude: float | None = None
+    longitude: float | None = None
+
+    class Config:
+        from_attributes = True
+
+
+class EcoRegistrarRequest(BaseModel):
+    eco_atividade_id: int
+
+
+class DiarioCreate(BaseModel):
+    ponto_turistico_id: int | None = None
+    checkin_id: int | None = None
+    comentario: str | None = None
+    foto: str | None = None

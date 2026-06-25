@@ -34,6 +34,7 @@ function CardLoader({ variant = "default" }) {
 
 export default function Card({
   imageUrl,
+  imageSource,
   title,
   description,
   children,
@@ -45,11 +46,13 @@ export default function Card({
   imageOpacity = 0.28,
   logoShape = "rounded",
 }) {
-  const [loaded, setLoaded] = useState(!imageUrl);
+  const resolvedSource = imageSource ? imageSource : imageUrl ? { uri: imageUrl } : null;
+  const hasImage = !!resolvedSource;
+  const [loaded, setLoaded] = useState(!hasImage);
   const isCircleLogo = logoShape === "circle";
   const cardStyle = [styles.card, shadows.card, style];
 
-  if (imageUrl && imageFit === "logo") {
+  if (hasImage && imageFit === "logo") {
     return (
       <View style={[cardStyle, styles.logoCard]}>
         {showBack ? <CardBackButton onBack={onBack} /> : null}
@@ -58,7 +61,7 @@ export default function Card({
           {!loaded ? <CardLoader variant="logo" /> : null}
           <View style={isCircleLogo ? styles.logoCircleFrame : styles.logoFrame}>
             <Image
-              source={{ uri: imageUrl }}
+              source={resolvedSource}
               style={isCircleLogo ? styles.logoCircleImage : styles.logoImage}
               resizeMode="contain"
               onLoadEnd={() => setLoaded(true)}
@@ -86,14 +89,14 @@ export default function Card({
     );
   }
 
-  if (imageUrl && imageFit === "overlay") {
+  if (hasImage && imageFit === "overlay") {
     return (
       <View style={[cardStyle, styles.logoCard, { minHeight: imageHeight }]}>
         {showBack ? <CardBackButton onBack={onBack} /> : null}
         {!loaded ? <CardLoader variant="logo" /> : null}
 
         <Image
-          source={{ uri: imageUrl }}
+          source={resolvedSource}
           style={[styles.overlayImage, { opacity: imageOpacity }]}
           resizeMode="contain"
           onLoadEnd={() => setLoaded(true)}
@@ -111,7 +114,7 @@ export default function Card({
     );
   }
 
-  if (imageUrl && imageFit === "contain") {
+  if (hasImage && imageFit === "contain") {
     return (
       <View style={cardStyle}>
         {showBack ? <CardBackButton onBack={onBack} /> : null}
@@ -119,7 +122,7 @@ export default function Card({
         <View style={[styles.imageArea, { height: imageHeight }]}>
           {!loaded ? <CardLoader /> : null}
           <Image
-            source={{ uri: imageUrl }}
+            source={resolvedSource}
             style={styles.containImage}
             resizeMode="contain"
             onLoadEnd={() => setLoaded(true)}
@@ -139,9 +142,9 @@ export default function Card({
   return (
     <View style={cardStyle}>
       {showBack ? <CardBackButton onBack={onBack} /> : null}
-      {imageUrl ? (
+      {hasImage ? (
         <ImageBackground
-          source={{ uri: imageUrl }}
+          source={resolvedSource}
           style={styles.coverImage}
           imageStyle={{ resizeMode: imageFit }}
           onLoadEnd={() => setLoaded(true)}

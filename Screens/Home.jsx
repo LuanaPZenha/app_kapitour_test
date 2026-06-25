@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import {
   View,
   Text,
+  Image,
   StyleSheet,
   ScrollView,
   Animated,
@@ -134,6 +135,33 @@ export default function Home() {
           <View style={styles.content}>
             <View style={styles.section}>
               <SectionHeader
+                title="Seu KapiPass"
+                subtitle="Passaporte turístico gamificado: colete carimbos e suba de nível."
+              />
+              <Card style={styles.narrowCard}>
+                <View style={styles.kapiHero}>
+                  <View style={styles.kapiStampWrap}>
+                    <Image
+                      source={require("../assets/kapipass_carimbo.png")}
+                      style={styles.kapiStamp}
+                      resizeMode="cover"
+                    />
+                  </View>
+                  <Text style={styles.kapiTitle}>Comece a explorar Maricá</Text>
+                  <Text style={styles.kapiDesc}>
+                    Faça check-in nos pontos turísticos, ganhe XP e desbloqueie conquistas.
+                  </Text>
+                  <View style={styles.kapiAction}>
+                    <Button icon="trophy" onPress={() => navigation.navigate("KapiPass")} fullWidth>
+                      Abrir KapiPass
+                    </Button>
+                  </View>
+                </View>
+              </Card>
+            </View>
+
+            <View style={styles.section}>
+              <SectionHeader
                 title="Descubra no Mapa"
                 subtitle="Pontos turísticos próximos de você, por categoria."
               />
@@ -264,6 +292,43 @@ const styles = StyleSheet.create({
     alignSelf: "center",
     width: CARD_NARROW,
     marginTop: spacing.sm,
+  },
+  kapiHero: {
+    alignItems: "center",
+    paddingVertical: spacing.sm,
+    gap: spacing.sm,
+  },
+  kapiStampWrap: {
+    width: 132,
+    height: 132,
+    borderRadius: 66,
+    padding: 4,
+    backgroundColor: colors.cardBg,
+    borderWidth: 2,
+    borderColor: colors.accent,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: spacing.xs,
+  },
+  kapiStamp: {
+    width: "100%",
+    height: "100%",
+    borderRadius: 62,
+  },
+  kapiTitle: {
+    ...typography.subtitle,
+    fontSize: 20,
+    color: colors.accent,
+    textAlign: "center",
+  },
+  kapiDesc: {
+    ...typography.body,
+    color: colors.textSecondary,
+    textAlign: "center",
+  },
+  kapiAction: {
+    width: "100%",
+    marginTop: spacing.xs,
   },
   weatherCard: {
     minHeight: 240,

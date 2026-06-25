@@ -26,6 +26,7 @@ import {
   Modal,
   View,
   Text,
+  Image,
   TouchableOpacity,
   StyleSheet,
   Pressable,
@@ -72,8 +73,10 @@ export function AppAlertProvider({ children }) {
       >
         <Pressable style={styles.overlay} onPress={dismiss}>
           <Pressable style={[styles.box, shadows.elevated]} onPress={() => {}}>
-            {/* Ícone opcional */}
-            {config?.icon ? (
+            {/* Imagem opcional (ex.: carimbo do KapiPass) */}
+            {config?.image ? (
+              <Image source={config.image} style={styles.image} resizeMode="contain" />
+            ) : config?.icon ? (
               <View
                 style={[
                   styles.iconWrap,
@@ -189,6 +192,12 @@ const styles = StyleSheet.create({
     borderRadius: 30,
     alignItems: "center",
     justifyContent: "center",
+    marginBottom: spacing.md,
+  },
+  image: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
     marginBottom: spacing.md,
   },
   title: {

@@ -32,6 +32,15 @@ import AreaUsuario from "./Screens/AreaUsuario";
 import Cupons from "./Screens/Cupons";
 import LeitorQR from "./Screens/LeitorQR";
 import WeatherScreen from "./Screens/WeatherScreen";
+import KapiPassScreen from "./Screens/KapiPassScreen";
+import CarimbosScreen from "./Screens/CarimbosScreen";
+import ConquistasScreen from "./Screens/ConquistasScreen";
+import MissoesScreen from "./Screens/MissoesScreen";
+import RankingScreen from "./Screens/RankingScreen";
+import ColecoesScreen from "./Screens/ColecoesScreen";
+import EcoPassScreen from "./Screens/EcoPassScreen";
+import DiarioScreen from "./Screens/DiarioScreen";
+import TesourosScreen from "./Screens/TesourosScreen";
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -90,6 +99,15 @@ function MainStack() {
       <Stack.Screen name="Contato" component={Contato} />
       <Stack.Screen name="Clima" component={WeatherScreen} />
       <Stack.Screen name="Mapa" component={Mapa} />
+      <Stack.Screen name="Cupons" component={Cupons} />
+      <Stack.Screen name="Carimbos" component={CarimbosScreen} />
+      <Stack.Screen name="Conquistas" component={ConquistasScreen} />
+      <Stack.Screen name="Missoes" component={MissoesScreen} />
+      <Stack.Screen name="Ranking" component={RankingScreen} />
+      <Stack.Screen name="Colecoes" component={ColecoesScreen} />
+      <Stack.Screen name="EcoPass" component={EcoPassScreen} />
+      <Stack.Screen name="Diario" component={DiarioScreen} />
+      <Stack.Screen name="Tesouros" component={TesourosScreen} />
     </Stack.Navigator>
   );
 }
@@ -101,7 +119,7 @@ function MainTabs() {
   const [direction, setDirection] = useState(0);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [animateTabs, setAnimateTabs] = useState(false);
-  const TAB_NAMES = ["Início", "Cupons", "Rotas", "Pontos Turísticos", "Perfil"];
+  const TAB_NAMES = ["Início", "KapiPass", "Rotas", "Pontos Turísticos", "Perfil"];
   const handleTabPress = (nextIndex) => {
     setDirection(nextIndex > currentIndex ? 1 : -1);
     setCurrentIndex(nextIndex);
@@ -141,11 +159,11 @@ function MainTabs() {
           }}
         />
         <Tab.Screen
-          name="Cupons"
-          component={withTabTransition(Cupons)}
+          name="KapiPass"
+          component={withTabTransition(KapiPassScreen)}
           options={{
             tabBarIcon: ({ color }) => (
-              <Ionicons name="pricetags-outline" color={color} size={28} />
+              <Ionicons name="ribbon-outline" color={color} size={28} />
             ),
           }}
           listeners={{

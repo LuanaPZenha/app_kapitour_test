@@ -452,6 +452,13 @@ const AreaUsuario = () => {
             {/* ── Ações ── */}
             <View style={styles.actions}>
               <Button
+                icon="pricetags-outline"
+                onPress={() => navigation.navigate("Cupons")}
+                fullWidth
+              >
+                Meus Cupons
+              </Button>
+              <Button
                 icon="headset-outline"
                 onPress={() => navigation.navigate("Contato")}
                 fullWidth
