@@ -1,8 +1,12 @@
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Query
-from sqlalchemy.orm import Session
 
+from app.dependencias import (
+    obter_repositorio_usuario,
+    obter_servico_autenticacao,
+    obter_servico_usuario,
+)
 from app.esquemas import (
     LoginRequest,
     RegisterRequest,
@@ -16,17 +20,16 @@ from kapitour_shared.autenticacao import (
     obter_usuario_obrigatorio_do_token,
     validar_chave_interna,
 )
-from kapitour_shared.banco_dados import obter_sessao_banco
 
 roteador = APIRouter()
 
 
 def obter_usuario_atual(
     authorization: Annotated[str | None, Header()] = None,
-    sessao: Session = Depends(obter_sessao_banco),
+    repositorio: RepositorioUsuario = Depends(obter_repositorio_usuario),
 ):
     usuario_token = obter_usuario_obrigatorio_do_token(authorization)
-    usuario = RepositorioUsuario(sessao).buscar_por_auth_id(usuario_token.auth_id)
+    usuario = repositorio.buscar_por_auth_id(usuario_token.auth_id)
     if not usuario:
         raise HTTPException(status_code=401, detail="Usuário não encontrado")
     return usuario
@@ -38,9 +41,12 @@ def health():
 
 
 @roteador.post("/auth/register", response_model=TokenResponse)
-def register(payload: RegisterRequest, sessao: Session = Depends(obter_sessao_banco)):
+def register(
+    payload: RegisterRequest,
+    servico: ServicoAutenticacao = Depends(obter_servico_autenticacao),
+):
     try:
-        resultado = ServicoAutenticacao(sessao).registrar(
+        resultado = servico.registrar(
             nome=payload.nome,
             email=payload.email,
             password=payload.password,
@@ -54,9 +60,12 @@ def register(payload: RegisterRequest, sessao: Session = Depends(obter_sessao_ba
 
 
 @roteador.post("/auth/login", response_model=TokenResponse)
-def login(payload: LoginRequest, sessao: Session = Depends(obter_sessao_banco)):
+def login(
+    payload: LoginRequest,
+    servico: ServicoAutenticacao = Depends(obter_servico_autenticacao),
+):
     try:
-        resultado = ServicoAutenticacao(sessao).entrar(payload.email, payload.password)
+        resultado = servico.entrar(payload.email, payload.password)
         return TokenResponse(access_token=resultado["access_token"], user=resultado["user"])
     except ValueError as exc:
         raise HTTPException(status_code=401, detail=str(exc)) from exc
@@ -68,22 +77,26 @@ def me(usuario=Depends(obter_usuario_atual)):
 
 
 @roteador.get("/usuarios/email-exists")
-def email_exists(email: str, sessao: Session = Depends(obter_sessao_banco)):
-    return {"exists": RepositorioUsuario(sessao).email_existe(email)}
+def email_exists(repositorio: RepositorioUsuario = Depends(obter_repositorio_usuario), email: str = ""):
+    return {"exists": repositorio.email_existe(email)}
 
 
 @roteador.get("/usuarios/by-auth/{auth_id}", response_model=UsuarioResponse)
-def get_user_by_auth(auth_id: str, sessao: Session = Depends(obter_sessao_banco)):
-    usuario = ServicoUsuario(sessao).buscar_por_auth_id(auth_id)
+def get_user_by_auth(auth_id: str, servico: ServicoUsuario = Depends(obter_servico_usuario)):
+    usuario = servico.buscar_por_auth_id(auth_id)
     if not usuario:
         raise HTTPException(status_code=404, detail="Usuário não encontrado")
     return usuario
 
 
 @roteador.patch("/usuarios/{auth_id}", response_model=UsuarioResponse)
-def update_user(auth_id: str, payload: UsuarioUpdateRequest, sessao: Session = Depends(obter_sessao_banco)):
+def update_user(
+    auth_id: str,
+    payload: UsuarioUpdateRequest,
+    servico: ServicoUsuario = Depends(obter_servico_usuario),
+):
     try:
-        return ServicoUsuario(sessao).atualizar(auth_id, payload.model_dump(exclude_unset=True))
+        return servico.atualizar(auth_id, payload.model_dump(exclude_unset=True))
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
@@ -92,9 +105,9 @@ def update_user(auth_id: str, payload: UsuarioUpdateRequest, sessao: Session = D
 def internal_get_user(
     user_id: int,
     _: None = Depends(validar_chave_interna),
-    sessao: Session = Depends(obter_sessao_banco),
+    repositorio: RepositorioUsuario = Depends(obter_repositorio_usuario),
 ):
-    usuario = RepositorioUsuario(sessao).buscar_por_id(user_id)
+    usuario = repositorio.buscar_por_id(user_id)
     if not usuario:
         raise HTTPException(status_code=404, detail="Usuário não encontrado")
     return UsuarioResponse.model_validate(usuario)
@@ -104,8 +117,8 @@ def internal_get_user(
 def internal_batch_users(
     ids: str = Query(...),
     _: None = Depends(validar_chave_interna),
-    sessao: Session = Depends(obter_sessao_banco),
+    repositorio: RepositorioUsuario = Depends(obter_repositorio_usuario),
 ):
     ids_usuarios = [int(x) for x in ids.split(",") if x.strip()]
-    usuarios = RepositorioUsuario(sessao).buscar_por_ids(ids_usuarios)
+    usuarios = repositorio.buscar_por_ids(ids_usuarios)
     return [UsuarioResponse.model_validate(u) for u in usuarios]

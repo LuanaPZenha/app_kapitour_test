@@ -2,6 +2,8 @@ from datetime import datetime
 
 from sqlalchemy.orm import Session
 
+from app.estrategias.conquistas import REGISTRO_CRITERIOS_CONQUISTA
+from app.estrategias.ranking import REGISTRO_ESTRATEGIAS_RANKING
 from app.repositorios import (
     RepositorioColecao,
     RepositorioDiario,
@@ -12,25 +14,33 @@ from app.repositorios import (
     RepositorioTesouro,
 )
 from kapitour_shared.clientes_http import ClienteAutenticacao, ClienteConteudo
+from kapitour_shared.contratos.clientes_http import (
+    ContratoClienteAutenticacao,
+    ContratoClienteConteudo,
+)
 from kapitour_shared.utilitarios import RAIO_PADRAO_CHECKIN_METROS, calcular_distancia_haversine_metros
-
-CONQUISTA_CRITERIOS = {
-    "explorador_marica": lambda s: s["visitados"] >= 1,
-    "cacador_historias": lambda s: s["visitados"] >= 3,
-    "fotografo_urbano": lambda s: s["visitados"] >= 5,
-    "guardiao_natureza": lambda s: s["visitados"] >= 8,
-    "colecionador_carimbos": lambda s: s["carimbos"] >= 5,
-}
 
 
 class ServicoGamificacao:
-    def __init__(self, sessao: Session):
+    """SRP: gamificação (XP, check-in, conquistas). Dependências injetadas (DIP)."""
+
+    def __init__(
+        self,
+        sessao: Session,
+        kapipass: RepositorioKapiPass | None = None,
+        conteudo: ContratoClienteConteudo | None = None,
+        autenticacao: ContratoClienteAutenticacao | None = None,
+        missoes: RepositorioMissao | None = None,
+        diario: RepositorioDiario | None = None,
+        criterios_conquista=REGISTRO_CRITERIOS_CONQUISTA,
+    ):
         self.sessao = sessao
-        self.kapipass = RepositorioKapiPass(sessao)
-        self.conteudo = ClienteConteudo()
-        self.autenticacao = ClienteAutenticacao()
-        self.missoes = RepositorioMissao(sessao)
-        self.diario = RepositorioDiario(sessao)
+        self.kapipass = kapipass or RepositorioKapiPass(sessao)
+        self.conteudo = conteudo or ClienteConteudo()
+        self.autenticacao = autenticacao or ClienteAutenticacao()
+        self.missoes = missoes or RepositorioMissao(sessao)
+        self.diario = diario or RepositorioDiario(sessao)
+        self._criterios_conquista = criterios_conquista
 
     def _estatisticas(self, usuario_id: int) -> dict:
         return {
@@ -57,12 +67,12 @@ class ServicoGamificacao:
         stats = self._estatisticas(usuario_id)
         novas: list[dict] = []
         for conquista in self.kapipass.listar_conquistas():
-            criterio = CONQUISTA_CRITERIOS.get(conquista.codigo)
+            criterio = self._criterios_conquista.get(conquista.codigo)
             if not criterio:
                 continue
             if self.kapipass.tem_conquista(usuario_id, conquista.id):
                 continue
-            if criterio(stats):
+            if criterio.atende(stats):
                 self.kapipass.conceder_conquista(usuario_id, conquista.id)
                 if conquista.xp_bonus:
                     self.conceder_xp(usuario_id, conquista.xp_bonus)
@@ -318,10 +328,18 @@ class ServicoGamificacao:
 
 
 class ServicoColecao:
-    def __init__(self, sessao: Session):
-        self.colecoes = RepositorioColecao(sessao)
-        self.kapipass = RepositorioKapiPass(sessao)
-        self.conteudo = ClienteConteudo()
+    def __init__(
+        self,
+        sessao: Session | None = None,
+        colecoes: RepositorioColecao | None = None,
+        kapipass: RepositorioKapiPass | None = None,
+        conteudo: ContratoClienteConteudo | None = None,
+    ):
+        if sessao is None and colecoes is None:
+            raise ValueError("Informe sessao ou colecoes.")
+        self.colecoes = colecoes or RepositorioColecao(sessao)
+        self.kapipass = kapipass or RepositorioKapiPass(sessao)
+        self.conteudo = conteudo or ClienteConteudo()
 
     def listar_colecoes(self, usuario_id: int) -> list[dict]:
         visitados = {c.ponto_turistico_id for c in self.kapipass.listar_checkins(usuario_id)}
@@ -356,9 +374,16 @@ class ServicoColecao:
 
 
 class ServicoMissao:
-    def __init__(self, sessao: Session):
-        self.missoes = RepositorioMissao(sessao)
-        self.gamificacao = ServicoGamificacao(sessao)
+    def __init__(
+        self,
+        sessao: Session | None = None,
+        missoes: RepositorioMissao | None = None,
+        gamificacao: ServicoGamificacao | None = None,
+    ):
+        if sessao is None and missoes is None:
+            raise ValueError("Informe sessao ou missoes.")
+        self.missoes = missoes or RepositorioMissao(sessao)
+        self.gamificacao = gamificacao or ServicoGamificacao(sessao)
 
     def listar_missoes(self, usuario_id: int) -> list[dict]:
         self.gamificacao.avaliar_missoes(usuario_id)
@@ -395,9 +420,16 @@ class ServicoMissao:
 
 
 class ServicoEco:
-    def __init__(self, sessao: Session):
-        self.eco = RepositorioEco(sessao)
-        self.gamificacao = ServicoGamificacao(sessao)
+    def __init__(
+        self,
+        sessao: Session | None = None,
+        eco: RepositorioEco | None = None,
+        gamificacao: ServicoGamificacao | None = None,
+    ):
+        if sessao is None and eco is None:
+            raise ValueError("Informe sessao ou eco.")
+        self.eco = eco or RepositorioEco(sessao)
+        self.gamificacao = gamificacao or ServicoGamificacao(sessao)
 
     def listar_atividades(self, usuario_id: int) -> dict:
         registradas = {}
@@ -435,9 +467,16 @@ class ServicoEco:
 
 
 class ServicoDiario:
-    def __init__(self, sessao: Session):
-        self.diario = RepositorioDiario(sessao)
-        self.conteudo = ClienteConteudo()
+    def __init__(
+        self,
+        sessao: Session | None = None,
+        diario: RepositorioDiario | None = None,
+        conteudo: ContratoClienteConteudo | None = None,
+    ):
+        if sessao is None and diario is None:
+            raise ValueError("Informe sessao ou diario.")
+        self.diario = diario or RepositorioDiario(sessao)
+        self.conteudo = conteudo or ClienteConteudo()
 
     def listar_entradas(self, usuario_id: int) -> list[dict]:
         entradas = self.diario.listar_por_usuario(usuario_id)
@@ -481,10 +520,18 @@ class ServicoDiario:
 
 
 class ServicoTesouro:
-    def __init__(self, sessao: Session):
-        self.tesouros = RepositorioTesouro(sessao)
-        self.kapipass = RepositorioKapiPass(sessao)
-        self.gamificacao = ServicoGamificacao(sessao)
+    def __init__(
+        self,
+        sessao: Session | None = None,
+        tesouros: RepositorioTesouro | None = None,
+        kapipass: RepositorioKapiPass | None = None,
+        gamificacao: ServicoGamificacao | None = None,
+    ):
+        if sessao is None and tesouros is None:
+            raise ValueError("Informe sessao ou tesouros.")
+        self.tesouros = tesouros or RepositorioTesouro(sessao)
+        self.kapipass = kapipass or RepositorioKapiPass(sessao)
+        self.gamificacao = gamificacao or ServicoGamificacao(sessao)
 
     def listar_tesouros(self, usuario_id: int) -> list[dict]:
         concluidos = {t.tesouro_id for t in self.tesouros.listar_usuario_tesouros(usuario_id)}
@@ -535,11 +582,20 @@ class ServicoTesouro:
 
 
 class ServicoRanking:
-    CATEGORIAS = {"exploradores", "trilheiros", "colecionadores", "ecopass", "xp"}
+    CATEGORIAS = set(REGISTRO_ESTRATEGIAS_RANKING.keys())
 
-    def __init__(self, sessao: Session):
-        self.rankings = RepositorioRanking(sessao)
-        self.autenticacao = ClienteAutenticacao()
+    def __init__(
+        self,
+        sessao: Session | None = None,
+        rankings: RepositorioRanking | None = None,
+        autenticacao: ContratoClienteAutenticacao | None = None,
+        estrategias=REGISTRO_ESTRATEGIAS_RANKING,
+    ):
+        if sessao is None and rankings is None:
+            raise ValueError("Informe sessao ou rankings.")
+        self.rankings = rankings or RepositorioRanking(sessao)
+        self.autenticacao = autenticacao or ClienteAutenticacao()
+        self._estrategias = estrategias
 
     def obter_ranking(self, categoria: str, pagina: int = 1, tamanho: int = 20) -> dict:
         categoria = (categoria or "exploradores").lower()
@@ -566,10 +622,5 @@ class ServicoRanking:
         return {"categoria": categoria, "page": pagina, "size": tamanho, "itens": itens}
 
     def _buscar_linhas_ranking(self, categoria: str, pagina: int, tamanho: int) -> tuple:
-        if categoria == "colecionadores":
-            return self.rankings.ranking_carimbos(pagina, tamanho), "carimbos"
-        if categoria == "ecopass":
-            return self.rankings.ranking_eco(pagina, tamanho), "ecopontos"
-        if categoria == "xp":
-            return self.rankings.ranking_xp(pagina, tamanho), "xp"
-        return self.rankings.ranking_checkins(pagina, tamanho), "locais"
+        estrategia = self._estrategias.get(categoria, self._estrategias["exploradores"])
+        return estrategia.buscar_linhas(self.rankings, pagina, tamanho), estrategia.unidade

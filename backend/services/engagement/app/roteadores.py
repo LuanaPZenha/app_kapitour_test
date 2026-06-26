@@ -11,6 +11,7 @@ from app.esquemas import (
     FavoritoResponse,
     PontoAvaliacaoCreate,
 )
+from app.dependencias import obter_repositorio_favorito, obter_servico_favoritos
 from app.servicos import ServicoFavoritos
 from kapitour_shared.banco_dados import obter_sessao_banco
 
@@ -23,18 +24,28 @@ def health():
 
 
 @roteador.get("/favoritos")
-def list_favoritos(usuario_id: int, sessao: Session = Depends(obter_sessao_banco)):
-    return ServicoFavoritos(sessao).listar_com_pontos(usuario_id)
+def list_favoritos(
+    usuario_id: int,
+    servico: ServicoFavoritos = Depends(obter_servico_favoritos),
+):
+    return servico.listar_com_pontos(usuario_id)
 
 
 @roteador.post("/favoritos", response_model=FavoritoResponse)
-def create_favorito(payload: FavoritoCreate, sessao: Session = Depends(obter_sessao_banco)):
-    return RepositorioFavorito(sessao).criar(payload.usuario_id, payload.ponto_id)
+def create_favorito(
+    payload: FavoritoCreate,
+    repositorio: RepositorioFavorito = Depends(obter_repositorio_favorito),
+):
+    return repositorio.criar(payload.usuario_id, payload.ponto_id)
 
 
 @roteador.delete("/favoritos")
-def delete_favorito(usuario_id: int, ponto_id: int, sessao: Session = Depends(obter_sessao_banco)):
-    ok = RepositorioFavorito(sessao).excluir(usuario_id, ponto_id)
+def delete_favorito(
+    usuario_id: int,
+    ponto_id: int,
+    repositorio: RepositorioFavorito = Depends(obter_repositorio_favorito),
+):
+    ok = repositorio.excluir(usuario_id, ponto_id)
     if not ok:
         raise HTTPException(status_code=404, detail="Favorito não encontrado")
     return {"success": True}

@@ -1,13 +1,23 @@
-from sqlalchemy.orm import Session
-
 from app.repositorios import RepositorioFavorito
 from kapitour_shared.clientes_http import ClienteConteudo
+from kapitour_shared.contratos.clientes_http import ContratoClienteConteudo
 
 
 class ServicoFavoritos:
-    def __init__(self, sessao: Session):
-        self.favoritos = RepositorioFavorito(sessao)
-        self.conteudo = ClienteConteudo()
+    """SRP: montagem de favoritos com dados de pontos. Cliente HTTP injetado (DIP)."""
+
+    def __init__(
+        self,
+        favoritos: RepositorioFavorito | None = None,
+        conteudo: ContratoClienteConteudo | None = None,
+        sessao=None,
+    ):
+        if favoritos is None:
+            if sessao is None:
+                raise ValueError("Informe favoritos ou sessao.")
+            favoritos = RepositorioFavorito(sessao)
+        self.favoritos = favoritos
+        self.conteudo = conteudo or ClienteConteudo()
 
     def listar_com_pontos(self, usuario_id: int) -> list[dict]:
         favoritos = self.favoritos.listar_por_usuario(usuario_id)
