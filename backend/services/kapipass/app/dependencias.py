@@ -20,23 +20,23 @@ from app.servicos import (
     ServicoTesouro,
 )
 from kapitour_shared.banco_dados import obter_sessao_banco
-from kapitour_shared.clientes_http import ClienteAutenticacao, ClienteConteudo
 from kapitour_shared.contratos.clientes_http import (
     ContratoClienteAutenticacao,
     ContratoClienteConteudo,
 )
-
-
-def obter_cliente_conteudo() -> ContratoClienteConteudo:
-    return ClienteConteudo()
-
-
-def obter_cliente_autenticacao() -> ContratoClienteAutenticacao:
-    return ClienteAutenticacao()
+from kapitour_shared.fabricas import obter_cliente_autenticacao, obter_cliente_conteudo
 
 
 def obter_repositorio_kapipass(sessao: Session = Depends(obter_sessao_banco)) -> RepositorioKapiPass:
     return RepositorioKapiPass(sessao)
+
+
+def obter_repositorio_missao(sessao: Session = Depends(obter_sessao_banco)) -> RepositorioMissao:
+    return RepositorioMissao(sessao)
+
+
+def obter_repositorio_diario(sessao: Session = Depends(obter_sessao_banco)) -> RepositorioDiario:
+    return RepositorioDiario(sessao)
 
 
 def obter_servico_gamificacao(
@@ -44,14 +44,16 @@ def obter_servico_gamificacao(
     kapipass: RepositorioKapiPass = Depends(obter_repositorio_kapipass),
     conteudo: ContratoClienteConteudo = Depends(obter_cliente_conteudo),
     autenticacao: ContratoClienteAutenticacao = Depends(obter_cliente_autenticacao),
+    missoes: RepositorioMissao = Depends(obter_repositorio_missao),
+    diario: RepositorioDiario = Depends(obter_repositorio_diario),
 ) -> ServicoGamificacao:
     return ServicoGamificacao(
         sessao=sessao,
         kapipass=kapipass,
         conteudo=conteudo,
         autenticacao=autenticacao,
-        missoes=RepositorioMissao(sessao),
-        diario=RepositorioDiario(sessao),
+        missoes=missoes,
+        diario=diario,
     )
 
 
@@ -68,33 +70,24 @@ def obter_servico_colecao(
 
 
 def obter_servico_missao(
-    sessao: Session = Depends(obter_sessao_banco),
+    missoes: RepositorioMissao = Depends(obter_repositorio_missao),
     gamificacao: ServicoGamificacao = Depends(obter_servico_gamificacao),
 ) -> ServicoMissao:
-    return ServicoMissao(
-        missoes=RepositorioMissao(sessao),
-        gamificacao=gamificacao,
-    )
+    return ServicoMissao(missoes=missoes, gamificacao=gamificacao)
 
 
 def obter_servico_eco(
     sessao: Session = Depends(obter_sessao_banco),
     gamificacao: ServicoGamificacao = Depends(obter_servico_gamificacao),
 ) -> ServicoEco:
-    return ServicoEco(
-        eco=RepositorioEco(sessao),
-        gamificacao=gamificacao,
-    )
+    return ServicoEco(eco=RepositorioEco(sessao), gamificacao=gamificacao)
 
 
 def obter_servico_diario(
-    sessao: Session = Depends(obter_sessao_banco),
+    diario: RepositorioDiario = Depends(obter_repositorio_diario),
     conteudo: ContratoClienteConteudo = Depends(obter_cliente_conteudo),
 ) -> ServicoDiario:
-    return ServicoDiario(
-        diario=RepositorioDiario(sessao),
-        conteudo=conteudo,
-    )
+    return ServicoDiario(diario=diario, conteudo=conteudo)
 
 
 def obter_servico_tesouro(
@@ -112,7 +105,4 @@ def obter_servico_ranking(
     sessao: Session = Depends(obter_sessao_banco),
     autenticacao: ContratoClienteAutenticacao = Depends(obter_cliente_autenticacao),
 ) -> ServicoRanking:
-    return ServicoRanking(
-        rankings=RepositorioRanking(sessao),
-        autenticacao=autenticacao,
-    )
+    return ServicoRanking(rankings=RepositorioRanking(sessao), autenticacao=autenticacao)

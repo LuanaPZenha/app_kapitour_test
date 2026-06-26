@@ -91,3 +91,6 @@ class RepositorioAvaliacao:
 
     def listar_ponto_avaliacoes(self, ponto_id: int) -> list[PontoAvaliacao]:
         return self.sessao.query(PontoAvaliacao).filter(PontoAvaliacao.ponto_id == ponto_id).all()
+
+    def buscar_por_id(self, avaliacao_id: int) -> Avaliacao | None:
+        return self.sessao.query(Avaliacao).filter(Avaliacao.id == avaliacao_id).first()

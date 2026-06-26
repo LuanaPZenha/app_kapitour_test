@@ -1,4 +1,4 @@
-from app.repositorios import RepositorioFavorito
+from app.repositorios import RepositorioAvaliacao, RepositorioFavorito
 from kapitour_shared.clientes_http import ClienteConteudo
 from kapitour_shared.contratos.clientes_http import ContratoClienteConteudo
 
@@ -45,3 +45,41 @@ class ServicoFavoritos:
             "url_img": ponto.get("url_img"),
             "rua_numero": ponto.get("rua_numero"),
         }
+
+
+class ServicoAvaliacao:
+    """Repository: regras de avaliação delegadas ao repositório."""
+
+    def __init__(self, repositorio: RepositorioAvaliacao):
+        self._avaliacoes = repositorio
+
+    def listar(self, ponto_id: int | None = None, usuario_id: int | None = None):
+        if usuario_id and ponto_id:
+            return self._avaliacoes.buscar_avaliacao_usuario(usuario_id, ponto_id)
+        if ponto_id:
+            return self._avaliacoes.listar_por_ponto(ponto_id)
+        return []
+
+    def criar_ou_atualizar(self, usuario_id: int, ponto_id: int, nota: int, comentario: str | None):
+        existente = self._avaliacoes.buscar_avaliacao_usuario(usuario_id, ponto_id)
+        if existente:
+            return self._avaliacoes.atualizar(existente, nota, comentario)
+        return self._avaliacoes.criar(usuario_id, ponto_id, nota, comentario)
+
+    def atualizar_por_id(self, avaliacao_id: int, nota: int, comentario: str | None):
+        avaliacao = self._avaliacoes.buscar_por_id(avaliacao_id)
+        if not avaliacao:
+            return None
+        return self._avaliacoes.atualizar(avaliacao, nota, comentario)
+
+    def criar_ponto_avaliacao(
+        self, ponto_id: int, usuario_id: int | None, nota: int, comentario: str | None
+    ):
+        return self._avaliacoes.criar_ponto_avaliacao(ponto_id, usuario_id, nota, comentario)
+
+    def media_por_ponto(self, ponto_id: int) -> dict:
+        avaliacoes = self._avaliacoes.listar_ponto_avaliacoes(ponto_id)
+        if not avaliacoes:
+            return {"media": 0}
+        media = sum(a.nota for a in avaliacoes) / len(avaliacoes)
+        return {"media": round(media, 1)}

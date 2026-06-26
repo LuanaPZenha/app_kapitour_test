@@ -49,6 +49,13 @@ class RepositorioPonto:
             .all()
         )
 
+    def buscar_ponto_categorias_por_categoria(self, categoria_id: int) -> list[PontoCategoria]:
+        return (
+            self.sessao.query(PontoCategoria)
+            .filter(PontoCategoria.categoria_id == categoria_id)
+            .all()
+        )
+
 
 class RepositorioRota:
     def __init__(self, sessao: Session):

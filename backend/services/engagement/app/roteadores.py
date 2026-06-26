@@ -1,8 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
 
-from app.modelos import Avaliacao
-from app.repositorios import RepositorioAvaliacao, RepositorioFavorito
+from app.dependencias import (
+    obter_repositorio_favorito,
+    obter_servico_avaliacao,
+    obter_servico_favoritos,
+)
 from app.esquemas import (
     AvaliacaoCreate,
     AvaliacaoResponse,
@@ -11,9 +13,8 @@ from app.esquemas import (
     FavoritoResponse,
     PontoAvaliacaoCreate,
 )
-from app.dependencias import obter_repositorio_favorito, obter_servico_favoritos
-from app.servicos import ServicoFavoritos
-from kapitour_shared.banco_dados import obter_sessao_banco
+from app.repositorios import RepositorioFavorito
+from app.servicos import ServicoAvaliacao, ServicoFavoritos
 
 roteador = APIRouter()
 
@@ -55,46 +56,51 @@ def delete_favorito(
 def list_avaliacoes(
     ponto_id: int | None = None,
     usuario_id: int | None = None,
-    sessao: Session = Depends(obter_sessao_banco),
+    servico: ServicoAvaliacao = Depends(obter_servico_avaliacao),
 ):
-    repositorio = RepositorioAvaliacao(sessao)
+    resultado = servico.listar(ponto_id=ponto_id, usuario_id=usuario_id)
     if usuario_id and ponto_id:
-        return repositorio.buscar_avaliacao_usuario(usuario_id, ponto_id)
+        return resultado
     if ponto_id:
-        return [AvaliacaoResponse.model_validate(a) for a in repositorio.listar_por_ponto(ponto_id)]
+        return [AvaliacaoResponse.model_validate(a) for a in resultado]
     return []
 
 
 @roteador.post("/avaliacoes", response_model=AvaliacaoResponse)
-def create_avaliacao(payload: AvaliacaoCreate, sessao: Session = Depends(obter_sessao_banco)):
-    repositorio = RepositorioAvaliacao(sessao)
-    existente = repositorio.buscar_avaliacao_usuario(payload.usuario_id, payload.ponto_id)
-    if existente:
-        item = repositorio.atualizar(existente, payload.nota, payload.comentario)
-    else:
-        item = repositorio.criar(payload.usuario_id, payload.ponto_id, payload.nota, payload.comentario)
-    return item
+def create_avaliacao(
+    payload: AvaliacaoCreate,
+    servico: ServicoAvaliacao = Depends(obter_servico_avaliacao),
+):
+    return servico.criar_ou_atualizar(
+        payload.usuario_id, payload.ponto_id, payload.nota, payload.comentario
+    )
 
 
 @roteador.put("/avaliacoes/{avaliacao_id}", response_model=AvaliacaoResponse)
-def update_avaliacao(avaliacao_id: int, payload: AvaliacaoUpdate, sessao: Session = Depends(obter_sessao_banco)):
-    avaliacao = sessao.query(Avaliacao).filter(Avaliacao.id == avaliacao_id).first()
-    if not avaliacao:
+def update_avaliacao(
+    avaliacao_id: int,
+    payload: AvaliacaoUpdate,
+    servico: ServicoAvaliacao = Depends(obter_servico_avaliacao),
+):
+    item = servico.atualizar_por_id(avaliacao_id, payload.nota, payload.comentario)
+    if not item:
         raise HTTPException(status_code=404, detail="Avaliação não encontrada")
-    return RepositorioAvaliacao(sessao).atualizar(avaliacao, payload.nota, payload.comentario)
+    return item
 
 
 @roteador.post("/ponto-avaliacoes")
-def create_ponto_avaliacao(payload: PontoAvaliacaoCreate, sessao: Session = Depends(obter_sessao_banco)):
-    return RepositorioAvaliacao(sessao).criar_ponto_avaliacao(
+def create_ponto_avaliacao(
+    payload: PontoAvaliacaoCreate,
+    servico: ServicoAvaliacao = Depends(obter_servico_avaliacao),
+):
+    return servico.criar_ponto_avaliacao(
         payload.ponto_id, payload.usuario_id, payload.nota, payload.comentario
     )
 
 
 @roteador.get("/ponto-avaliacoes/media")
-def media_ponto_avaliacoes(ponto_id: int, sessao: Session = Depends(obter_sessao_banco)):
-    avaliacoes = RepositorioAvaliacao(sessao).listar_ponto_avaliacoes(ponto_id)
-    if not avaliacoes:
-        return {"media": 0}
-    media = sum(a.nota for a in avaliacoes) / len(avaliacoes)
-    return {"media": round(media, 1)}
+def media_ponto_avaliacoes(
+    ponto_id: int,
+    servico: ServicoAvaliacao = Depends(obter_servico_avaliacao),
+):
+    return servico.media_por_ponto(ponto_id)

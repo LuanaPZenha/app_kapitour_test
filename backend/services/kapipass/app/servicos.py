@@ -3,7 +3,10 @@ from datetime import datetime
 from sqlalchemy.orm import Session
 
 from app.estrategias.conquistas import REGISTRO_CRITERIOS_CONQUISTA
+from app.estrategias.missoes import ESTRATEGIA_MISSAO_PADRAO, REGISTRO_ESTRATEGIAS_MISSAO
 from app.estrategias.ranking import REGISTRO_ESTRATEGIAS_RANKING
+from app.eventos.publicador import PublicadorEventosCheckin, criar_publicador_checkin_padrao
+from app.eventos.modelo import ContextoCheckin
 from app.repositorios import (
     RepositorioColecao,
     RepositorioDiario,
@@ -33,6 +36,8 @@ class ServicoGamificacao:
         missoes: RepositorioMissao | None = None,
         diario: RepositorioDiario | None = None,
         criterios_conquista=REGISTRO_CRITERIOS_CONQUISTA,
+        estrategias_missao=REGISTRO_ESTRATEGIAS_MISSAO,
+        publicador_checkin: PublicadorEventosCheckin | None = None,
     ):
         self.sessao = sessao
         self.kapipass = kapipass or RepositorioKapiPass(sessao)
@@ -41,6 +46,8 @@ class ServicoGamificacao:
         self.missoes = missoes or RepositorioMissao(sessao)
         self.diario = diario or RepositorioDiario(sessao)
         self._criterios_conquista = criterios_conquista
+        self._estrategias_missao = estrategias_missao
+        self._publicador_checkin = publicador_checkin or criar_publicador_checkin_padrao()
 
     def _estatisticas(self, usuario_id: int) -> dict:
         return {
@@ -88,7 +95,8 @@ class ServicoGamificacao:
             missao = self.missoes.buscar_missao(registro.missao_id)
             if not missao:
                 continue
-            progresso = stats["carimbos"] if missao.tipo == "carimbos" else stats["visitados"]
+            estrategia = self._estrategias_missao.get(missao.tipo, ESTRATEGIA_MISSAO_PADRAO)
+            progresso = estrategia.calcular_progresso(stats)
             registro.progresso = min(progresso, missao.objetivo_quantidade)
             if registro.progresso >= missao.objetivo_quantidade:
                 registro.concluida = True
@@ -123,9 +131,17 @@ class ServicoGamificacao:
         checkin = self.kapipass.criar_checkin(usuario_id, ponto_id, latitude, longitude)
 
         novo_carimbo = self._conceder_carimbo_se_primeira_visita(usuario_id, ponto_id, primeira_visita)
-        novas_conquistas = self.avaliar_conquistas(usuario_id)
-        self.avaliar_missoes(usuario_id)
-        self._registrar_diario_primeira_visita(usuario_id, ponto_id, ponto, checkin, primeira_visita)
+        efeitos = self._publicador_checkin.publicar(
+            ContextoCheckin(
+                usuario_id=usuario_id,
+                ponto_id=ponto_id,
+                ponto=ponto,
+                checkin=checkin,
+                primeira_visita=primeira_visita,
+                gamificacao=self,
+            )
+        )
+        novas_conquistas = efeitos.get("novas_conquistas", [])
 
         xp_final = self.kapipass.obter_ou_criar_usuario_xp(usuario_id)
         return self._montar_resposta_checkin(
@@ -166,7 +182,7 @@ class ServicoGamificacao:
         self.conceder_xp(usuario_id, carimbo.xp_recompensa or 0)
         return self._serializar_carimbo(carimbo, obtido=True)
 
-    def _registrar_diario_primeira_visita(
+    def registrar_diario_primeira_visita(
         self, usuario_id: int, ponto_id: int, ponto: dict, checkin, primeira_visita: bool
     ) -> None:
         if not primeira_visita:
