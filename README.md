@@ -4,16 +4,36 @@ Aplicativo mobile de turismo (React Native/Expo) com API backend em FastAPI e ba
 
 ## Arquitetura
 
+O backend foi dividido em **microserviços** com banco SQLite separado por domínio e um **API Gateway** (nginx) na porta 8000. O app mobile continua usando a mesma URL base (`http://localhost:8000/api`).
+
 ```
 appkapitour/
-├── backend/           # API FastAPI + SQLAlchemy + SQLite
-├── database/          # Arquivo kapitour.db (volume Docker persistente)
-├── Screens/           # Telas do app mobile
-├── components/        # Componentes React Native
-├── lib/api.js         # Cliente HTTP (substitui Supabase)
+├── backend/
+│   ├── shared/kapitour_shared/   # JWT, clients HTTP, utils
+│   ├── services/
+│   │   ├── auth/                 # usuarios + autenticação → auth.db
+│   │   ├── content/              # categorias, pontos, rotas → content.db
+│   │   ├── engagement/           # favoritos, avaliações → engagement.db
+│   │   ├── commerce/             # loja + cupons → commerce.db
+│   │   └── kapipass/             # gamificação → kapipass.db
+│   ├── gateway/nginx.conf        # roteamento /api/*
+│   └── app/                      # monolito legado (opcional)
+├── database/                     # auth.db, content.db, engagement.db, ...
+├── Screens/
+├── components/
+├── lib/api.js
 ├── docker-compose.yml
-└── Dockerfile
+└── Dockerfile                    # monolito legado
 ```
+
+| Serviço     | Responsabilidade                          | Banco            |
+|------------|-------------------------------------------|------------------|
+| auth       | login, registro, perfil                   | `auth.db`        |
+| content    | pontos turísticos, rotas, categorias      | `content.db`     |
+| engagement | favoritos e avaliações                    | `engagement.db`  |
+| commerce   | produtos, estoque, cupons                 | `commerce.db`    |
+| kapipass   | XP, carimbos, missões, rankings           | `kapipass.db`    |
+| gateway    | expõe tudo em `:8000`                     | —                |
 
 ## Pré-requisitos
 
@@ -41,13 +61,27 @@ EXPO_PUBLIC_API_URL=http://localhost:8000/api
 docker compose up --build
 ```
 
-A API ficará disponível em:
+Isso sobe os 5 microserviços + gateway nginx. A API continua em:
 
 - **API:** http://localhost:8000
-- **Documentação Swagger:** http://localhost:8000/docs
 - **Health check:** http://localhost:8000/api/health
 
-O banco SQLite é persistido em `./database/kapitour.db` via volume Docker.
+Os bancos ficam em `./database/` (`auth.db`, `content.db`, etc.) via volume Docker.
+
+### Migrar do monolito
+
+Se você já tinha `database/kapitour.db`:
+
+```bash
+python backend/scripts/split_database.py
+docker compose up --build
+```
+
+### Monolito legado (opcional)
+
+```bash
+docker compose --profile monolith up kapitour-monolith --build
+```
 
 ## Executar localmente (sem Docker)
 

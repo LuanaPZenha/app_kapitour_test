@@ -1,0 +1,23 @@
+FROM python:3.11-slim
+
+WORKDIR /app
+
+ARG SERVICE=auth
+ENV SERVICE=${SERVICE}
+ENV PYTHONPATH=/app/shared:/app
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+
+COPY backend/requirements.txt ./requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY backend/shared ./shared
+COPY backend/services/${SERVICE}/app ./app
+COPY backend/scripts/ensure_microservice_data.py ./scripts/ensure_microservice_data.py
+COPY backend/scripts/split_database.py ./scripts/split_database.py
+
+RUN mkdir -p /app/database
+
+EXPOSE 8000
+
+CMD ["sh", "-c", "python /app/scripts/ensure_microservice_data.py 2>/dev/null || true; exec uvicorn app.main:app --host 0.0.0.0 --port 8000"]

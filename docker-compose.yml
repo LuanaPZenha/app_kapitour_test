@@ -1,7 +1,113 @@
+x-service-env: &service-env
+  JWT_SECRET: ${JWT_SECRET:-kapitour-dev-secret-change-in-production}
+  INTERNAL_SERVICE_KEY: ${INTERNAL_SERVICE_KEY:-kapitour-internal-dev-key}
+  AUTH_SERVICE_URL: http://auth:8000
+  CONTENT_SERVICE_URL: http://content:8000
+  ENGAGEMENT_SERVICE_URL: http://engagement:8000
+  COMMERCE_SERVICE_URL: http://commerce:8000
+  KAPIPASS_SERVICE_URL: http://kapipass:8000
+  CORS_ORIGINS: "*"
+
 services:
-  kapitour:
+  auth:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile.service
+      args:
+        SERVICE: auth
+    container_name: kapitour-auth
+    environment:
+      <<: *service-env
+      DATABASE_URL: sqlite:///database/auth.db
+    volumes:
+      - ./database:/app/database
+    expose:
+      - "8000"
+
+  content:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile.service
+      args:
+        SERVICE: content
+    container_name: kapitour-content
+    environment:
+      <<: *service-env
+      DATABASE_URL: sqlite:///database/content.db
+    volumes:
+      - ./database:/app/database
+    expose:
+      - "8000"
+
+  engagement:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile.service
+      args:
+        SERVICE: engagement
+    container_name: kapitour-engagement
+    environment:
+      <<: *service-env
+      DATABASE_URL: sqlite:///database/engagement.db
+    volumes:
+      - ./database:/app/database
+    depends_on:
+      - content
+    expose:
+      - "8000"
+
+  commerce:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile.service
+      args:
+        SERVICE: commerce
+    container_name: kapitour-commerce
+    environment:
+      <<: *service-env
+      DATABASE_URL: sqlite:///database/commerce.db
+    volumes:
+      - ./database:/app/database
+    expose:
+      - "8000"
+
+  kapipass:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile.service
+      args:
+        SERVICE: kapipass
+    container_name: kapitour-kapipass
+    environment:
+      <<: *service-env
+      DATABASE_URL: sqlite:///database/kapipass.db
+    volumes:
+      - ./database:/app/database
+    depends_on:
+      - auth
+      - content
+    expose:
+      - "8000"
+
+  gateway:
+    image: nginx:1.27-alpine
+    container_name: kapitour-gateway
+    ports:
+      - "8000:80"
+    volumes:
+      - ./backend/gateway/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - auth
+      - content
+      - engagement
+      - commerce
+      - kapipass
+
+  # Monolito legado (opcional): docker compose --profile monolith up kapitour-monolith
+  kapitour-monolith:
+    profiles: ["monolith"]
     build: .
-    container_name: kapitour
+    container_name: kapitour-monolith
     ports:
       - "8000:8000"
     volumes:
