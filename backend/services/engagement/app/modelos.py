@@ -3,10 +3,10 @@ from datetime import datetime
 from sqlalchemy import DateTime, Integer, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
-from kapitour_shared.database import Base
+from kapitour_shared.banco_dados import BaseModelo
 
 
-class Favorito(Base):
+class Favorito(BaseModelo):
     __tablename__ = "favoritos"
     __table_args__ = (UniqueConstraint("usuario_id", "ponto_id"),)
 
@@ -16,7 +16,7 @@ class Favorito(Base):
     data_adicionado: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
 
-class Avaliacao(Base):
+class Avaliacao(BaseModelo):
     __tablename__ = "avaliacoes"
     __table_args__ = (UniqueConstraint("usuario_id", "ponto_id"),)
 
@@ -28,7 +28,7 @@ class Avaliacao(Base):
     data_avaliacao: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
 
-class PontoAvaliacao(Base):
+class PontoAvaliacao(BaseModelo):
     __tablename__ = "ponto_avaliacoes"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)

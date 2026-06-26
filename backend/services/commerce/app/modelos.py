@@ -3,17 +3,17 @@ from datetime import date, datetime
 from sqlalchemy import Boolean, Date, DateTime, Float, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
-from kapitour_shared.database import Base
+from kapitour_shared.banco_dados import BaseModelo
 
 
-class TipoProduto(Base):
+class TipoProduto(BaseModelo):
     __tablename__ = "tipos_produto"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     nome: Mapped[str] = mapped_column(String(255), nullable=False)
 
 
-class Produto(Base):
+class Produto(BaseModelo):
     __tablename__ = "produtos"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
@@ -24,14 +24,14 @@ class Produto(Base):
     imagem_url: Mapped[str | None] = mapped_column(Text)
 
 
-class Estoque(Base):
+class Estoque(BaseModelo):
     __tablename__ = "estoque"
 
     produto_id: Mapped[int] = mapped_column(ForeignKey("produtos.id"), primary_key=True)
     quantidade: Mapped[int] = mapped_column(Integer, default=0)
 
 
-class Campanha(Base):
+class Campanha(BaseModelo):
     __tablename__ = "campanhas"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
@@ -43,7 +43,7 @@ class Campanha(Base):
     criada_em: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
 
-class Cupom(Base):
+class Cupom(BaseModelo):
     __tablename__ = "cupons"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
@@ -57,7 +57,7 @@ class Cupom(Base):
     campanha_id: Mapped[int | None] = mapped_column(ForeignKey("campanhas.id"))
 
 
-class CupomResgatado(Base):
+class CupomResgatado(BaseModelo):
     __tablename__ = "cupons_resgatados"
     __table_args__ = (UniqueConstraint("cupom_id", "usuario_id"),)
 

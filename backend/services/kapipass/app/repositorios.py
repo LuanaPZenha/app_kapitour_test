@@ -3,7 +3,7 @@ from datetime import datetime
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from app.models import (
+from app.modelos import (
     Checkin,
     Colecao,
     ColecaoPonto,
@@ -23,16 +23,16 @@ from app.models import (
 )
 
 
-class KapiPassRepository:
-    def __init__(self, db: Session):
-        self.db = db
+class RepositorioKapiPass:
+    def __init__(self, sessao: Session):
+        self.sessao = sessao
 
-    def list_niveis(self) -> list[KapiPassNivel]:
-        return self.db.query(KapiPassNivel).order_by(KapiPassNivel.xp_minimo).all()
+    def listar_niveis(self) -> list[KapiPassNivel]:
+        return self.sessao.query(KapiPassNivel).order_by(KapiPassNivel.xp_minimo).all()
 
     def nivel_para_xp(self, xp: int) -> KapiPassNivel | None:
         return (
-            self.db.query(KapiPassNivel)
+            self.sessao.query(KapiPassNivel)
             .filter(KapiPassNivel.xp_minimo <= xp)
             .order_by(KapiPassNivel.xp_minimo.desc())
             .first()
@@ -40,47 +40,51 @@ class KapiPassRepository:
 
     def proximo_nivel(self, xp: int) -> KapiPassNivel | None:
         return (
-            self.db.query(KapiPassNivel)
+            self.sessao.query(KapiPassNivel)
             .filter(KapiPassNivel.xp_minimo > xp)
             .order_by(KapiPassNivel.xp_minimo)
             .first()
         )
 
-    def get_usuario_xp(self, usuario_id: int) -> UsuarioXp | None:
-        return self.db.query(UsuarioXp).filter(UsuarioXp.usuario_id == usuario_id).first()
+    def buscar_usuario_xp(self, usuario_id: int) -> UsuarioXp | None:
+        return self.sessao.query(UsuarioXp).filter(UsuarioXp.usuario_id == usuario_id).first()
 
-    def get_or_create_usuario_xp(self, usuario_id: int) -> UsuarioXp:
-        registro = self.get_usuario_xp(usuario_id)
+    def obter_ou_criar_usuario_xp(self, usuario_id: int) -> UsuarioXp:
+        registro = self.buscar_usuario_xp(usuario_id)
         if registro:
             return registro
         registro = UsuarioXp(usuario_id=usuario_id, xp_total=0, nivel_atual=1)
-        self.db.add(registro)
-        self.db.commit()
-        self.db.refresh(registro)
+        self.sessao.add(registro)
+        self.sessao.commit()
+        self.sessao.refresh(registro)
         return registro
 
     def salvar_usuario_xp(self, registro: UsuarioXp) -> UsuarioXp:
         registro.atualizado_em = datetime.utcnow()
-        self.db.commit()
-        self.db.refresh(registro)
+        self.sessao.commit()
+        self.sessao.refresh(registro)
         return registro
 
-    def list_carimbos(self) -> list[KapiPassCarimbo]:
-        return self.db.query(KapiPassCarimbo).all()
+    def listar_carimbos(self) -> list[KapiPassCarimbo]:
+        return self.sessao.query(KapiPassCarimbo).all()
 
-    def get_carimbo_por_ponto(self, ponto_id: int) -> KapiPassCarimbo | None:
+    def buscar_carimbo_por_ponto(self, ponto_id: int) -> KapiPassCarimbo | None:
         return (
-            self.db.query(KapiPassCarimbo)
+            self.sessao.query(KapiPassCarimbo)
             .filter(KapiPassCarimbo.ponto_turistico_id == ponto_id)
             .first()
         )
 
-    def list_usuario_carimbos(self, usuario_id: int) -> list[UsuarioCarimbo]:
-        return self.db.query(UsuarioCarimbo).filter(UsuarioCarimbo.usuario_id == usuario_id).all()
+    def listar_usuario_carimbos(self, usuario_id: int) -> list[UsuarioCarimbo]:
+        return (
+            self.sessao.query(UsuarioCarimbo)
+            .filter(UsuarioCarimbo.usuario_id == usuario_id)
+            .all()
+        )
 
     def tem_carimbo(self, usuario_id: int, carimbo_id: int) -> bool:
         return (
-            self.db.query(UsuarioCarimbo)
+            self.sessao.query(UsuarioCarimbo)
             .filter(
                 UsuarioCarimbo.usuario_id == usuario_id,
                 UsuarioCarimbo.carimbo_id == carimbo_id,
@@ -95,17 +99,21 @@ class KapiPassRepository:
             carimbo_id=carimbo_id,
             data_obtencao=datetime.utcnow(),
         )
-        self.db.add(registro)
-        self.db.commit()
-        self.db.refresh(registro)
+        self.sessao.add(registro)
+        self.sessao.commit()
+        self.sessao.refresh(registro)
         return registro
 
-    def count_carimbos(self, usuario_id: int) -> int:
-        return self.db.query(UsuarioCarimbo).filter(UsuarioCarimbo.usuario_id == usuario_id).count()
-
-    def list_checkins(self, usuario_id: int) -> list[Checkin]:
+    def contar_carimbos(self, usuario_id: int) -> int:
         return (
-            self.db.query(Checkin)
+            self.sessao.query(UsuarioCarimbo)
+            .filter(UsuarioCarimbo.usuario_id == usuario_id)
+            .count()
+        )
+
+    def listar_checkins(self, usuario_id: int) -> list[Checkin]:
+        return (
+            self.sessao.query(Checkin)
             .filter(Checkin.usuario_id == usuario_id)
             .order_by(Checkin.data_checkin.desc())
             .all()
@@ -113,7 +121,7 @@ class KapiPassRepository:
 
     def tem_checkin(self, usuario_id: int, ponto_id: int) -> bool:
         return (
-            self.db.query(Checkin)
+            self.sessao.query(Checkin)
             .filter(
                 Checkin.usuario_id == usuario_id,
                 Checkin.ponto_turistico_id == ponto_id,
@@ -132,32 +140,32 @@ class KapiPassRepository:
             latitude=latitude,
             longitude=longitude,
         )
-        self.db.add(checkin)
-        self.db.commit()
-        self.db.refresh(checkin)
+        self.sessao.add(checkin)
+        self.sessao.commit()
+        self.sessao.refresh(checkin)
         return checkin
 
-    def count_pontos_visitados(self, usuario_id: int) -> int:
+    def contar_pontos_visitados(self, usuario_id: int) -> int:
         return (
-            self.db.query(Checkin.ponto_turistico_id)
+            self.sessao.query(Checkin.ponto_turistico_id)
             .filter(Checkin.usuario_id == usuario_id)
             .distinct()
             .count()
         )
 
-    def list_conquistas(self) -> list[Conquista]:
-        return self.db.query(Conquista).all()
+    def listar_conquistas(self) -> list[Conquista]:
+        return self.sessao.query(Conquista).all()
 
-    def list_usuario_conquistas(self, usuario_id: int) -> list[UsuarioConquista]:
+    def listar_usuario_conquistas(self, usuario_id: int) -> list[UsuarioConquista]:
         return (
-            self.db.query(UsuarioConquista)
+            self.sessao.query(UsuarioConquista)
             .filter(UsuarioConquista.usuario_id == usuario_id)
             .all()
         )
 
     def tem_conquista(self, usuario_id: int, conquista_id: int) -> bool:
         return (
-            self.db.query(UsuarioConquista)
+            self.sessao.query(UsuarioConquista)
             .filter(
                 UsuarioConquista.usuario_id == usuario_id,
                 UsuarioConquista.conquista_id == conquista_id,
@@ -172,54 +180,63 @@ class KapiPassRepository:
             conquista_id=conquista_id,
             data_desbloqueio=datetime.utcnow(),
         )
-        self.db.add(registro)
-        self.db.commit()
-        self.db.refresh(registro)
+        self.sessao.add(registro)
+        self.sessao.commit()
+        self.sessao.refresh(registro)
         return registro
 
-    def count_conquistas(self, usuario_id: int) -> int:
+    def contar_conquistas(self, usuario_id: int) -> int:
         return (
-            self.db.query(UsuarioConquista)
+            self.sessao.query(UsuarioConquista)
             .filter(UsuarioConquista.usuario_id == usuario_id)
             .count()
         )
 
 
-class CollectionRepository:
-    def __init__(self, db: Session):
-        self.db = db
+class RepositorioColecao:
+    def __init__(self, sessao: Session):
+        self.sessao = sessao
 
-    def list_colecoes(self) -> list[Colecao]:
-        return self.db.query(Colecao).order_by(Colecao.id).all()
+    def listar_colecoes(self) -> list[Colecao]:
+        return self.sessao.query(Colecao).order_by(Colecao.id).all()
 
-    def list_pontos_da_colecao(self, colecao_id: int) -> list[int]:
+    def listar_pontos_da_colecao(self, colecao_id: int) -> list[int]:
         return [
-            row.ponto_turistico_id
-            for row in self.db.query(ColecaoPonto)
+            linha.ponto_turistico_id
+            for linha in self.sessao.query(ColecaoPonto)
             .filter(ColecaoPonto.colecao_id == colecao_id)
             .all()
         ]
 
 
-class MissionRepository:
-    def __init__(self, db: Session):
-        self.db = db
+class RepositorioMissao:
+    def __init__(self, sessao: Session):
+        self.sessao = sessao
 
-    def list_ativas(self) -> list[Missao]:
-        return self.db.query(Missao).filter(Missao.ativo.is_(True)).order_by(Missao.id).all()
-
-    def get_missao(self, missao_id: int) -> Missao | None:
-        return self.db.query(Missao).filter(Missao.id == missao_id).first()
-
-    def get_usuario_missao(self, usuario_id: int, missao_id: int) -> UsuarioMissao | None:
+    def listar_ativas(self) -> list[Missao]:
         return (
-            self.db.query(UsuarioMissao)
+            self.sessao.query(Missao)
+            .filter(Missao.ativo.is_(True))
+            .order_by(Missao.id)
+            .all()
+        )
+
+    def buscar_missao(self, missao_id: int) -> Missao | None:
+        return self.sessao.query(Missao).filter(Missao.id == missao_id).first()
+
+    def buscar_usuario_missao(self, usuario_id: int, missao_id: int) -> UsuarioMissao | None:
+        return (
+            self.sessao.query(UsuarioMissao)
             .filter(UsuarioMissao.usuario_id == usuario_id, UsuarioMissao.missao_id == missao_id)
             .first()
         )
 
-    def list_usuario_missoes(self, usuario_id: int) -> list[UsuarioMissao]:
-        return self.db.query(UsuarioMissao).filter(UsuarioMissao.usuario_id == usuario_id).all()
+    def listar_usuario_missoes(self, usuario_id: int) -> list[UsuarioMissao]:
+        return (
+            self.sessao.query(UsuarioMissao)
+            .filter(UsuarioMissao.usuario_id == usuario_id)
+            .all()
+        )
 
     def aceitar(self, usuario_id: int, missao_id: int) -> UsuarioMissao:
         registro = UsuarioMissao(
@@ -229,30 +246,30 @@ class MissionRepository:
             concluida=False,
             data_inicio=datetime.utcnow(),
         )
-        self.db.add(registro)
-        self.db.commit()
-        self.db.refresh(registro)
+        self.sessao.add(registro)
+        self.sessao.commit()
+        self.sessao.refresh(registro)
         return registro
 
     def salvar(self, registro: UsuarioMissao) -> UsuarioMissao:
-        self.db.commit()
-        self.db.refresh(registro)
+        self.sessao.commit()
+        self.sessao.refresh(registro)
         return registro
 
 
-class EcoRepository:
-    def __init__(self, db: Session):
-        self.db = db
+class RepositorioEco:
+    def __init__(self, sessao: Session):
+        self.sessao = sessao
 
-    def list_atividades(self) -> list[EcoAtividade]:
-        return self.db.query(EcoAtividade).order_by(EcoAtividade.id).all()
+    def listar_atividades(self) -> list[EcoAtividade]:
+        return self.sessao.query(EcoAtividade).order_by(EcoAtividade.id).all()
 
-    def get_atividade(self, atividade_id: int) -> EcoAtividade | None:
-        return self.db.query(EcoAtividade).filter(EcoAtividade.id == atividade_id).first()
+    def buscar_atividade(self, atividade_id: int) -> EcoAtividade | None:
+        return self.sessao.query(EcoAtividade).filter(EcoAtividade.id == atividade_id).first()
 
-    def list_usuario_atividades(self, usuario_id: int) -> list[UsuarioEcoAtividade]:
+    def listar_usuario_atividades(self, usuario_id: int) -> list[UsuarioEcoAtividade]:
         return (
-            self.db.query(UsuarioEcoAtividade)
+            self.sessao.query(UsuarioEcoAtividade)
             .filter(UsuarioEcoAtividade.usuario_id == usuario_id)
             .order_by(UsuarioEcoAtividade.data.desc())
             .all()
@@ -265,33 +282,33 @@ class EcoRepository:
             data=datetime.utcnow(),
             pontuacao=pontuacao,
         )
-        self.db.add(registro)
-        self.db.commit()
-        self.db.refresh(registro)
+        self.sessao.add(registro)
+        self.sessao.commit()
+        self.sessao.refresh(registro)
         return registro
 
     def pontuacao_total(self, usuario_id: int) -> int:
         total = (
-            self.db.query(func.coalesce(func.sum(UsuarioEcoAtividade.pontuacao), 0))
+            self.sessao.query(func.coalesce(func.sum(UsuarioEcoAtividade.pontuacao), 0))
             .filter(UsuarioEcoAtividade.usuario_id == usuario_id)
             .scalar()
         )
         return int(total or 0)
 
 
-class DiaryRepository:
-    def __init__(self, db: Session):
-        self.db = db
+class RepositorioDiario:
+    def __init__(self, sessao: Session):
+        self.sessao = sessao
 
-    def list_by_user(self, usuario_id: int) -> list[DiarioViagem]:
+    def listar_por_usuario(self, usuario_id: int) -> list[DiarioViagem]:
         return (
-            self.db.query(DiarioViagem)
+            self.sessao.query(DiarioViagem)
             .filter(DiarioViagem.usuario_id == usuario_id)
             .order_by(DiarioViagem.data.desc())
             .all()
         )
 
-    def create(
+    def criar(
         self,
         usuario_id: int,
         ponto_turistico_id: int | None,
@@ -307,28 +324,32 @@ class DiaryRepository:
             foto=foto,
             data=datetime.utcnow(),
         )
-        self.db.add(entrada)
-        self.db.commit()
-        self.db.refresh(entrada)
+        self.sessao.add(entrada)
+        self.sessao.commit()
+        self.sessao.refresh(entrada)
         return entrada
 
 
-class TreasureRepository:
-    def __init__(self, db: Session):
-        self.db = db
+class RepositorioTesouro:
+    def __init__(self, sessao: Session):
+        self.sessao = sessao
 
-    def list_tesouros(self) -> list[Tesouro]:
-        return self.db.query(Tesouro).order_by(Tesouro.id).all()
+    def listar_tesouros(self) -> list[Tesouro]:
+        return self.sessao.query(Tesouro).order_by(Tesouro.id).all()
 
-    def get_tesouro(self, tesouro_id: int) -> Tesouro | None:
-        return self.db.query(Tesouro).filter(Tesouro.id == tesouro_id).first()
+    def buscar_tesouro(self, tesouro_id: int) -> Tesouro | None:
+        return self.sessao.query(Tesouro).filter(Tesouro.id == tesouro_id).first()
 
-    def list_usuario_tesouros(self, usuario_id: int) -> list[UsuarioTesouro]:
-        return self.db.query(UsuarioTesouro).filter(UsuarioTesouro.usuario_id == usuario_id).all()
+    def listar_usuario_tesouros(self, usuario_id: int) -> list[UsuarioTesouro]:
+        return (
+            self.sessao.query(UsuarioTesouro)
+            .filter(UsuarioTesouro.usuario_id == usuario_id)
+            .all()
+        )
 
     def ja_concluido(self, usuario_id: int, tesouro_id: int) -> bool:
         return (
-            self.db.query(UsuarioTesouro)
+            self.sessao.query(UsuarioTesouro)
             .filter(
                 UsuarioTesouro.usuario_id == usuario_id,
                 UsuarioTesouro.tesouro_id == tesouro_id,
@@ -343,54 +364,54 @@ class TreasureRepository:
             tesouro_id=tesouro_id,
             data_conclusao=datetime.utcnow(),
         )
-        self.db.add(registro)
-        self.db.commit()
-        self.db.refresh(registro)
+        self.sessao.add(registro)
+        self.sessao.commit()
+        self.sessao.refresh(registro)
         return registro
 
 
-class RankingRepository:
-    def __init__(self, db: Session):
-        self.db = db
+class RepositorioRanking:
+    def __init__(self, sessao: Session):
+        self.sessao = sessao
 
-    def _paginar(self, query, page: int, size: int):
-        return query.limit(size).offset((page - 1) * size).all()
+    def _paginar(self, consulta, pagina: int, tamanho: int):
+        return consulta.limit(tamanho).offset((pagina - 1) * tamanho).all()
 
-    def ranking_xp(self, page: int, size: int) -> list[tuple]:
-        query = self.db.query(UsuarioXp.usuario_id, UsuarioXp.xp_total).order_by(
+    def ranking_xp(self, pagina: int, tamanho: int) -> list[tuple]:
+        consulta = self.sessao.query(UsuarioXp.usuario_id, UsuarioXp.xp_total).order_by(
             UsuarioXp.xp_total.desc()
         )
-        return self._paginar(query, page, size)
+        return self._paginar(consulta, pagina, tamanho)
 
-    def ranking_carimbos(self, page: int, size: int) -> list[tuple]:
-        query = (
-            self.db.query(
+    def ranking_carimbos(self, pagina: int, tamanho: int) -> list[tuple]:
+        consulta = (
+            self.sessao.query(
                 UsuarioCarimbo.usuario_id,
                 func.count(UsuarioCarimbo.id).label("total"),
             )
             .group_by(UsuarioCarimbo.usuario_id)
             .order_by(func.count(UsuarioCarimbo.id).desc())
         )
-        return self._paginar(query, page, size)
+        return self._paginar(consulta, pagina, tamanho)
 
-    def ranking_checkins(self, page: int, size: int) -> list[tuple]:
-        query = (
-            self.db.query(
+    def ranking_checkins(self, pagina: int, tamanho: int) -> list[tuple]:
+        consulta = (
+            self.sessao.query(
                 Checkin.usuario_id,
                 func.count(func.distinct(Checkin.ponto_turistico_id)).label("total"),
             )
             .group_by(Checkin.usuario_id)
             .order_by(func.count(func.distinct(Checkin.ponto_turistico_id)).desc())
         )
-        return self._paginar(query, page, size)
+        return self._paginar(consulta, pagina, tamanho)
 
-    def ranking_eco(self, page: int, size: int) -> list[tuple]:
-        query = (
-            self.db.query(
+    def ranking_eco(self, pagina: int, tamanho: int) -> list[tuple]:
+        consulta = (
+            self.sessao.query(
                 UsuarioEcoAtividade.usuario_id,
                 func.coalesce(func.sum(UsuarioEcoAtividade.pontuacao), 0).label("total"),
             )
             .group_by(UsuarioEcoAtividade.usuario_id)
             .order_by(func.sum(UsuarioEcoAtividade.pontuacao).desc())
         )
-        return self._paginar(query, page, size)
+        return self._paginar(consulta, pagina, tamanho)

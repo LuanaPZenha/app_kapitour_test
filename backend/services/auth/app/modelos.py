@@ -3,10 +3,10 @@ from datetime import date, datetime
 from sqlalchemy import Date, DateTime, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column
 
-from kapitour_shared.database import Base
+from kapitour_shared.banco_dados import BaseModelo
 
 
-class Usuario(Base):
+class Usuario(BaseModelo):
     __tablename__ = "usuarios"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)

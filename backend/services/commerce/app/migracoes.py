@@ -2,21 +2,21 @@ from datetime import date, datetime
 
 from sqlalchemy.orm import Session
 
-from app.models import Campanha, Cupom, Estoque, Produto, TipoProduto
-from kapitour_shared.database import Base, engine
+from app.modelos import Campanha, Cupom, Estoque, Produto, TipoProduto
+from kapitour_shared.banco_dados import BaseModelo, motor_banco
 
 
-def run_migrations() -> None:
-    Base.metadata.create_all(bind=engine)
+def executar_migracoes() -> None:
+    BaseModelo.metadata.create_all(bind=motor_banco)
 
 
-def seed_initial_data(db: Session) -> None:
-    if db.query(Produto).count() > 0:
+def semear_dados_iniciais(sessao: Session) -> None:
+    if sessao.query(Produto).count() > 0:
         return
 
     tipos = [TipoProduto(nome="Souvenir"), TipoProduto(nome="Vestuário")]
-    db.add_all(tipos)
-    db.flush()
+    sessao.add_all(tipos)
+    sessao.flush()
 
     produtos = [
         Produto(
@@ -34,10 +34,10 @@ def seed_initial_data(db: Session) -> None:
             imagem_url="https://images.unsplash.com/photo-1513885535751-8b9238bd345a",
         ),
     ]
-    db.add_all(produtos)
-    db.flush()
+    sessao.add_all(produtos)
+    sessao.flush()
 
-    db.add_all(
+    sessao.add_all(
         [
             Estoque(produto_id=produtos[0].id, quantidade=25),
             Estoque(produto_id=produtos[1].id, quantidade=100),
@@ -52,10 +52,10 @@ def seed_initial_data(db: Session) -> None:
         ativa=True,
         criada_em=datetime.utcnow(),
     )
-    db.add(campanha)
-    db.flush()
+    sessao.add(campanha)
+    sessao.flush()
 
-    db.add(
+    sessao.add(
         Cupom(
             codigo="VERAO10",
             descricao="10% de desconto em parceiros selecionados.",
@@ -67,4 +67,4 @@ def seed_initial_data(db: Session) -> None:
             campanha_id=campanha.id,
         )
     )
-    db.commit()
+    sessao.commit()

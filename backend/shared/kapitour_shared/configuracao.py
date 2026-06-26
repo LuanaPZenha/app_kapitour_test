@@ -1,7 +1,7 @@
 from pydantic_settings import BaseSettings
 
 
-class Settings(BaseSettings):
+class ConfiguracoesApp(BaseSettings):
     database_url: str = "sqlite:///database/auth.db"
     jwt_secret: str = "kapitour-dev-secret-change-in-production"
     jwt_algorithm: str = "HS256"
@@ -20,4 +20,4 @@ class Settings(BaseSettings):
         extra = "ignore"
 
 
-settings = Settings()
+configuracoes = ConfiguracoesApp()

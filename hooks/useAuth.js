@@ -1,81 +1,87 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
-import { authApi, dbApi } from "../lib/api";
+import { apiAutenticacao, apiTurismo } from "../lib/api";
 
-const AuthContext = createContext(null);
+const ContextoAutenticacao = createContext(null);
 
-export function AuthProvider({ children }) {
-  const [user, setUser] = useState(null);
-  const [userInfo, setUserInfo] = useState(null);
-  const [loading, setLoading] = useState(true);
+export function ProvedorAutenticacao({ children }) {
+  const [usuario, setUsuario] = useState(null);
+  const [dadosUsuario, setDadosUsuario] = useState(null);
+  const [carregando, setCarregando] = useState(true);
 
-  const loadUserInfo = useCallback(async (authId) => {
-    const { data, error } = await dbApi.getUserByAuthId(authId);
+  const carregarDadosUsuario = useCallback(async (authId) => {
+    const { data, error } = await apiTurismo.buscarUsuarioPorAuthId(authId);
     if (error) {
       console.log("Erro ao buscar usuário:", error);
       return null;
     }
-    setUserInfo(data);
+    setDadosUsuario(data);
     return data;
   }, []);
 
   useEffect(() => {
     (async () => {
       try {
-        const { data } = await authApi.getSession();
+        const { data } = await apiAutenticacao.obterSessao();
         if (data?.session?.user) {
-          setUser(data.session.user);
-          await loadUserInfo(data.session.user.id);
+          setUsuario(data.session.user);
+          await carregarDadosUsuario(data.session.user.id);
         } else {
-          setUser(null);
-          setUserInfo(null);
+          setUsuario(null);
+          setDadosUsuario(null);
         }
       } finally {
-        setLoading(false);
+        setCarregando(false);
       }
     })();
-  }, [loadUserInfo]);
+  }, [carregarDadosUsuario]);
 
-  const signIn = async (email, password) => {
+  const entrar = async (email, senha) => {
     try {
-      const { data, error } = await authApi.login(email, password);
+      const { data, error } = await apiAutenticacao.entrar(email, senha);
       if (error) throw new Error(error.message);
 
-      const sessionUser = { id: data.user.auth_id, email: data.user.email };
-      setUser(sessionUser);
-      setUserInfo(data.user);
-      return { success: true, user: sessionUser };
-    } catch (err) {
-      return { success: false, error: err.message };
+      const usuarioSessao = { id: data.user.auth_id, email: data.user.email };
+      setUsuario(usuarioSessao);
+      setDadosUsuario(data.user);
+      return { success: true, user: usuarioSessao };
+    } catch (erro) {
+      return { success: false, error: erro.message };
     }
   };
 
-  const signOut = async () => {
+  const sair = async () => {
     try {
-      await authApi.signOut();
-      setUser(null);
-      setUserInfo(null);
+      await apiAutenticacao.sair();
+      setUsuario(null);
+      setDadosUsuario(null);
       return { success: true };
-    } catch (err) {
-      return { success: false, error: err.message };
+    } catch (erro) {
+      return { success: false, error: erro.message };
     }
   };
 
-  const value = {
-    user,
-    userInfo,
-    isLogged: userInfo !== null,
-    loading,
-    signIn,
-    signOut,
+  const valor = {
+    user: usuario,
+    userInfo: dadosUsuario,
+    isLogged: dadosUsuario !== null,
+    loading: carregando,
+    signIn: entrar,
+    signOut: sair,
   };
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  return (
+    <ContextoAutenticacao.Provider value={valor}>{children}</ContextoAutenticacao.Provider>
+  );
 }
 
-export const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error("useAuth deve ser usado dentro de AuthProvider");
+export function useAutenticacao() {
+  const contexto = useContext(ContextoAutenticacao);
+  if (!contexto) {
+    throw new Error("useAutenticacao deve ser usado dentro de ProvedorAutenticacao");
   }
-  return context;
-};
+  return contexto;
+}
+
+// Compatibilidade com telas ainda não migradas
+export const AuthProvider = ProvedorAutenticacao;
+export const useAuth = useAutenticacao;

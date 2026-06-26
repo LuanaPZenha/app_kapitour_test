@@ -2,7 +2,7 @@ import time
 
 from sqlalchemy.orm import Session
 
-from app.models import (
+from app.modelos import (
     Colecao,
     ColecaoPonto,
     Conquista,
@@ -12,15 +12,15 @@ from app.models import (
     Missao,
     Tesouro,
 )
-from kapitour_shared.clients import ContentClient
-from kapitour_shared.database import Base, engine
+from kapitour_shared.banco_dados import BaseModelo, motor_banco
+from kapitour_shared.clientes_http import ClienteConteudo
 
 
-def run_migrations() -> None:
-    Base.metadata.create_all(bind=engine)
+def executar_migracoes() -> None:
+    BaseModelo.metadata.create_all(bind=motor_banco)
 
 
-def _build_niveis() -> list[KapiPassNivel]:
+def _montar_niveis() -> list[KapiPassNivel]:
     return [
         KapiPassNivel(nome="Turista Iniciante", xp_minimo=0, ordem=1),
         KapiPassNivel(nome="Explorador Local", xp_minimo=250, ordem=2),
@@ -30,7 +30,7 @@ def _build_niveis() -> list[KapiPassNivel]:
     ]
 
 
-def _build_conquistas() -> list[Conquista]:
+def _montar_conquistas() -> list[Conquista]:
     return [
         Conquista(
             codigo="explorador_marica",
@@ -79,8 +79,8 @@ def _pontos_por_palavras(pontos: list[dict], palavras: list[str]) -> list[int]:
     return ids
 
 
-def _seed_colecoes(db: Session, pontos: list[dict]) -> None:
-    if db.query(Colecao).count() > 0:
+def _semear_colecoes(sessao: Session, pontos: list[dict]) -> None:
+    if sessao.query(Colecao).count() > 0:
         return
     definicoes = [
         (
@@ -101,17 +101,17 @@ def _seed_colecoes(db: Session, pontos: list[dict]) -> None:
     ]
     for nome, descricao, palavras in definicoes:
         colecao = Colecao(nome=nome, descricao=descricao, imagem=None)
-        db.add(colecao)
-        db.flush()
+        sessao.add(colecao)
+        sessao.flush()
         for ponto_id in _pontos_por_palavras(pontos, palavras):
-            db.add(ColecaoPonto(colecao_id=colecao.id, ponto_turistico_id=ponto_id))
-    db.flush()
+            sessao.add(ColecaoPonto(colecao_id=colecao.id, ponto_turistico_id=ponto_id))
+    sessao.flush()
 
 
-def _seed_missoes(db: Session) -> None:
-    if db.query(Missao).count() > 0:
+def _semear_missoes(sessao: Session) -> None:
+    if sessao.query(Missao).count() > 0:
         return
-    db.add_all(
+    sessao.add_all(
         [
             Missao(
                 nome="Primeiro Passo",
@@ -155,13 +155,13 @@ def _seed_missoes(db: Session) -> None:
             ),
         ]
     )
-    db.flush()
+    sessao.flush()
 
 
-def _seed_eco_atividades(db: Session) -> None:
-    if db.query(EcoAtividade).count() > 0:
+def _semear_eco_atividades(sessao: Session) -> None:
+    if sessao.query(EcoAtividade).count() > 0:
         return
-    db.add_all(
+    sessao.add_all(
         [
             EcoAtividade(
                 nome="Trilha Ecológica",
@@ -193,22 +193,22 @@ def _seed_eco_atividades(db: Session) -> None:
             ),
         ]
     )
-    db.flush()
+    sessao.flush()
 
 
-def _seed_tesouros(db: Session, pontos: list[dict]) -> None:
-    if db.query(Tesouro).count() > 0:
+def _semear_tesouros(sessao: Session, pontos: list[dict]) -> None:
+    if sessao.query(Tesouro).count() > 0:
         return
-    pedra_ids = _pontos_por_palavras(pontos, ["pedra", "elefante", "itaocaia"])
-    centro_ids = _pontos_por_palavras(pontos, ["centro", "igreja", "histór"])
-    db.add_all(
+    ids_pedra = _pontos_por_palavras(pontos, ["pedra", "elefante", "itaocaia"])
+    ids_centro = _pontos_por_palavras(pontos, ["centro", "igreja", "histór"])
+    sessao.add_all(
         [
             Tesouro(
                 nome="O Guardião de Pedra",
                 descricao="Um tesouro escondido nas alturas de Maricá.",
                 pista="Procure onde a pedra tem forma de um grande animal.",
                 enigma="Sou grande, sou cinza, e pareço ter tromba. Que pedra sou eu?",
-                ponto_turistico_id=pedra_ids[0] if pedra_ids else None,
+                ponto_turistico_id=ids_pedra[0] if ids_pedra else None,
                 carimbo_id=None,
                 conquista_id=None,
                 xp_bonus=300,
@@ -218,28 +218,28 @@ def _seed_tesouros(db: Session, pontos: list[dict]) -> None:
                 descricao="A história de Maricá guarda um enigma.",
                 pista="Onde os sinos tocam e a fé se reúne.",
                 enigma="Tenho torre, tenho sino, e sou o coração da fé local.",
-                ponto_turistico_id=centro_ids[0] if centro_ids else None,
+                ponto_turistico_id=ids_centro[0] if ids_centro else None,
                 carimbo_id=None,
                 conquista_id=None,
                 xp_bonus=250,
             ),
         ]
     )
-    db.flush()
+    sessao.flush()
 
 
-def seed_kapipass(db: Session, pontos: list[dict]) -> None:
-    if db.query(KapiPassNivel).count() == 0:
-        db.add_all(_build_niveis())
-        db.flush()
+def semear_kapipass(sessao: Session, pontos: list[dict]) -> None:
+    if sessao.query(KapiPassNivel).count() == 0:
+        sessao.add_all(_montar_niveis())
+        sessao.flush()
 
-    existing_codigos = {codigo for (codigo,) in db.query(Conquista.codigo).all()}
-    novas_conquistas = [c for c in _build_conquistas() if c.codigo not in existing_codigos]
+    codigos_existentes = {codigo for (codigo,) in sessao.query(Conquista.codigo).all()}
+    novas_conquistas = [c for c in _montar_conquistas() if c.codigo not in codigos_existentes]
     if novas_conquistas:
-        db.add_all(novas_conquistas)
-        db.flush()
+        sessao.add_all(novas_conquistas)
+        sessao.flush()
 
-    pontos_com_carimbo = {pid for (pid,) in db.query(KapiPassCarimbo.ponto_turistico_id).all()}
+    pontos_com_carimbo = {pid for (pid,) in sessao.query(KapiPassCarimbo.ponto_turistico_id).all()}
     novos_carimbos = []
     for ponto in pontos:
         if ponto["id"] in pontos_com_carimbo:
@@ -255,26 +255,26 @@ def seed_kapipass(db: Session, pontos: list[dict]) -> None:
             )
         )
     if novos_carimbos:
-        db.add_all(novos_carimbos)
-        db.flush()
+        sessao.add_all(novos_carimbos)
+        sessao.flush()
 
-    _seed_colecoes(db, pontos)
-    _seed_missoes(db)
-    _seed_eco_atividades(db)
-    _seed_tesouros(db, pontos)
+    _semear_colecoes(sessao, pontos)
+    _semear_missoes(sessao)
+    _semear_eco_atividades(sessao)
+    _semear_tesouros(sessao, pontos)
 
 
-def seed_initial_data(db: Session) -> None:
-    content = ContentClient()
+def semear_dados_iniciais(sessao: Session) -> None:
+    conteudo = ClienteConteudo()
     pontos: list[dict] = []
-    for attempt in range(10):
+    for tentativa in range(10):
         try:
-            pontos = content.list_pontos()
+            pontos = conteudo.listar_pontos_turisticos()
             if pontos:
                 break
         except Exception:
             pass
         time.sleep(1)
 
-    seed_kapipass(db, pontos)
-    db.commit()
+    semear_kapipass(sessao, pontos)
+    sessao.commit()

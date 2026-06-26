@@ -3,10 +3,10 @@ from datetime import date, datetime
 from sqlalchemy import Boolean, DateTime, Float, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
-from kapitour_shared.database import Base
+from kapitour_shared.banco_dados import BaseModelo
 
 
-class KapiPassNivel(Base):
+class KapiPassNivel(BaseModelo):
     __tablename__ = "kapipass_niveis"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
@@ -15,7 +15,7 @@ class KapiPassNivel(Base):
     ordem: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
 
 
-class UsuarioXp(Base):
+class UsuarioXp(BaseModelo):
     __tablename__ = "usuario_xp"
 
     usuario_id: Mapped[int] = mapped_column(Integer, primary_key=True)
@@ -24,7 +24,7 @@ class UsuarioXp(Base):
     atualizado_em: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
 
-class KapiPassCarimbo(Base):
+class KapiPassCarimbo(BaseModelo):
     __tablename__ = "kapipass_carimbos"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
@@ -36,7 +36,7 @@ class KapiPassCarimbo(Base):
     xp_recompensa: Mapped[int] = mapped_column(Integer, default=50)
 
 
-class UsuarioCarimbo(Base):
+class UsuarioCarimbo(BaseModelo):
     __tablename__ = "usuario_carimbos"
     __table_args__ = (UniqueConstraint("usuario_id", "carimbo_id"),)
 
@@ -46,7 +46,7 @@ class UsuarioCarimbo(Base):
     data_obtencao: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
 
-class Checkin(Base):
+class Checkin(BaseModelo):
     __tablename__ = "checkins"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
@@ -57,7 +57,7 @@ class Checkin(Base):
     longitude: Mapped[float | None] = mapped_column(Float)
 
 
-class Conquista(Base):
+class Conquista(BaseModelo):
     __tablename__ = "conquistas"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
@@ -68,7 +68,7 @@ class Conquista(Base):
     xp_bonus: Mapped[int] = mapped_column(Integer, default=0)
 
 
-class UsuarioConquista(Base):
+class UsuarioConquista(BaseModelo):
     __tablename__ = "usuario_conquistas"
     __table_args__ = (UniqueConstraint("usuario_id", "conquista_id"),)
 
@@ -78,7 +78,7 @@ class UsuarioConquista(Base):
     data_desbloqueio: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
 
-class Colecao(Base):
+class Colecao(BaseModelo):
     __tablename__ = "colecoes"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
@@ -87,7 +87,7 @@ class Colecao(Base):
     imagem: Mapped[str | None] = mapped_column(Text)
 
 
-class ColecaoPonto(Base):
+class ColecaoPonto(BaseModelo):
     __tablename__ = "colecao_pontos"
     __table_args__ = (UniqueConstraint("colecao_id", "ponto_turistico_id"),)
 
@@ -96,7 +96,7 @@ class ColecaoPonto(Base):
     ponto_turistico_id: Mapped[int] = mapped_column(Integer, nullable=False)
 
 
-class Missao(Base):
+class Missao(BaseModelo):
     __tablename__ = "missoes"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
@@ -110,7 +110,7 @@ class Missao(Base):
     ativo: Mapped[bool] = mapped_column(Boolean, default=True)
 
 
-class UsuarioMissao(Base):
+class UsuarioMissao(BaseModelo):
     __tablename__ = "usuario_missoes"
     __table_args__ = (UniqueConstraint("usuario_id", "missao_id"),)
 
@@ -123,7 +123,7 @@ class UsuarioMissao(Base):
     data_conclusao: Mapped[datetime | None] = mapped_column(DateTime)
 
 
-class EcoAtividade(Base):
+class EcoAtividade(BaseModelo):
     __tablename__ = "eco_atividades"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
@@ -134,7 +134,7 @@ class EcoAtividade(Base):
     xp_recompensa: Mapped[int] = mapped_column(Integer, default=0)
 
 
-class UsuarioEcoAtividade(Base):
+class UsuarioEcoAtividade(BaseModelo):
     __tablename__ = "usuario_eco_atividades"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
@@ -144,7 +144,7 @@ class UsuarioEcoAtividade(Base):
     pontuacao: Mapped[int] = mapped_column(Integer, default=0)
 
 
-class DiarioViagem(Base):
+class DiarioViagem(BaseModelo):
     __tablename__ = "diario_viagem"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
@@ -156,7 +156,7 @@ class DiarioViagem(Base):
     data: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
 
-class Tesouro(Base):
+class Tesouro(BaseModelo):
     __tablename__ = "tesouros"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
@@ -170,7 +170,7 @@ class Tesouro(Base):
     xp_bonus: Mapped[int] = mapped_column(Integer, default=0)
 
 
-class UsuarioTesouro(Base):
+class UsuarioTesouro(BaseModelo):
     __tablename__ = "usuario_tesouros"
     __table_args__ = (UniqueConstraint("usuario_id", "tesouro_id"),)
 

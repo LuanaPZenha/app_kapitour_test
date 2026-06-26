@@ -1,14 +1,14 @@
 from sqlalchemy.orm import Session
 
-from app.models import PontoTuristico
-from kapitour_shared.database import Base, engine
+from app.modelos import PontoTuristico
+from kapitour_shared.banco_dados import BaseModelo, motor_banco
 
 
-def run_migrations() -> None:
-    Base.metadata.create_all(bind=engine)
+def executar_migracoes() -> None:
+    BaseModelo.metadata.create_all(bind=motor_banco)
 
 
-def seed_initial_data(db: Session) -> None:
+def semear_dados_iniciais(sessao: Session) -> None:
     """Não insere dados de demo (Salvador).
 
     Os pontos e rotas de Maricá vêm de:
@@ -16,5 +16,5 @@ def seed_initial_data(db: Session) -> None:
     - `backend/scripts/ensure_microservice_data.py` (automático no Docker quando kapitour.db existe).
     - `backend/scripts/update_pontos_marica.py` para atualizar o catálogo curado.
     """
-    if db.query(PontoTuristico).count() > 0:
+    if sessao.query(PontoTuristico).count() > 0:
         return

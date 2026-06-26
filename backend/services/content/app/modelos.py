@@ -1,17 +1,17 @@
 from sqlalchemy import Float, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
-from kapitour_shared.database import Base
+from kapitour_shared.banco_dados import BaseModelo
 
 
-class Categoria(Base):
+class Categoria(BaseModelo):
     __tablename__ = "categorias"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     nome: Mapped[str] = mapped_column(String(255), nullable=False)
 
 
-class PontoTuristico(Base):
+class PontoTuristico(BaseModelo):
     __tablename__ = "pontos_turisticos"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
@@ -23,7 +23,7 @@ class PontoTuristico(Base):
     rua_numero: Mapped[str | None] = mapped_column(String(255))
 
 
-class PontoCategoria(Base):
+class PontoCategoria(BaseModelo):
     __tablename__ = "ponto_categoria"
     __table_args__ = (UniqueConstraint("ponto_id", "categoria_id"),)
 
@@ -32,7 +32,7 @@ class PontoCategoria(Base):
     categoria_id: Mapped[int] = mapped_column(ForeignKey("categorias.id"), nullable=False)
 
 
-class Rota(Base):
+class Rota(BaseModelo):
     __tablename__ = "rotas"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
@@ -40,7 +40,7 @@ class Rota(Base):
     descricao: Mapped[str | None] = mapped_column(Text)
 
 
-class RotaPonto(Base):
+class RotaPonto(BaseModelo):
     __tablename__ = "rota_ponto"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)

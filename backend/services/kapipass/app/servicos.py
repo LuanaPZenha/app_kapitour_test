@@ -2,17 +2,17 @@ from datetime import datetime
 
 from sqlalchemy.orm import Session
 
-from app.repositories import (
-    CollectionRepository,
-    DiaryRepository,
-    EcoRepository,
-    KapiPassRepository,
-    MissionRepository,
-    RankingRepository,
-    TreasureRepository,
+from app.repositorios import (
+    RepositorioColecao,
+    RepositorioDiario,
+    RepositorioEco,
+    RepositorioKapiPass,
+    RepositorioMissao,
+    RepositorioRanking,
+    RepositorioTesouro,
 )
-from kapitour_shared.clients import AuthClient, ContentClient
-from kapitour_shared.utils import DEFAULT_CHECKIN_RADIUS_M, haversine_m
+from kapitour_shared.clientes_http import ClienteAutenticacao, ClienteConteudo
+from kapitour_shared.utilitarios import RAIO_PADRAO_CHECKIN_METROS, calcular_distancia_haversine_metros
 
 CONQUISTA_CRITERIOS = {
     "explorador_marica": lambda s: s["visitados"] >= 1,
@@ -23,24 +23,24 @@ CONQUISTA_CRITERIOS = {
 }
 
 
-class GamificationService:
-    def __init__(self, db: Session):
-        self.db = db
-        self.kapipass = KapiPassRepository(db)
-        self.content = ContentClient()
-        self.auth = AuthClient()
-        self.missions = MissionRepository(db)
-        self.diary = DiaryRepository(db)
+class ServicoGamificacao:
+    def __init__(self, sessao: Session):
+        self.sessao = sessao
+        self.kapipass = RepositorioKapiPass(sessao)
+        self.conteudo = ClienteConteudo()
+        self.autenticacao = ClienteAutenticacao()
+        self.missoes = RepositorioMissao(sessao)
+        self.diario = RepositorioDiario(sessao)
 
-    def _stats(self, usuario_id: int) -> dict:
+    def _estatisticas(self, usuario_id: int) -> dict:
         return {
-            "visitados": self.kapipass.count_pontos_visitados(usuario_id),
-            "carimbos": self.kapipass.count_carimbos(usuario_id),
-            "conquistas": self.kapipass.count_conquistas(usuario_id),
+            "visitados": self.kapipass.contar_pontos_visitados(usuario_id),
+            "carimbos": self.kapipass.contar_carimbos(usuario_id),
+            "conquistas": self.kapipass.contar_conquistas(usuario_id),
         }
 
     def conceder_xp(self, usuario_id: int, quantidade: int) -> dict:
-        registro = self.kapipass.get_or_create_usuario_xp(usuario_id)
+        registro = self.kapipass.obter_ou_criar_usuario_xp(usuario_id)
         nivel_anterior = registro.nivel_atual
         registro.xp_total += max(0, quantidade)
         nivel = self.kapipass.nivel_para_xp(registro.xp_total)
@@ -54,9 +54,9 @@ class GamificationService:
         }
 
     def avaliar_conquistas(self, usuario_id: int) -> list[dict]:
-        stats = self._stats(usuario_id)
+        stats = self._estatisticas(usuario_id)
         novas: list[dict] = []
-        for conquista in self.kapipass.list_conquistas():
+        for conquista in self.kapipass.listar_conquistas():
             criterio = CONQUISTA_CRITERIOS.get(conquista.codigo)
             if not criterio:
                 continue
@@ -66,16 +66,16 @@ class GamificationService:
                 self.kapipass.conceder_conquista(usuario_id, conquista.id)
                 if conquista.xp_bonus:
                     self.conceder_xp(usuario_id, conquista.xp_bonus)
-                novas.append(self._serialize_conquista(conquista, desbloqueada=True))
+                novas.append(self._serializar_conquista(conquista, desbloqueada=True))
         return novas
 
     def avaliar_missoes(self, usuario_id: int) -> list[dict]:
-        stats = self._stats(usuario_id)
+        stats = self._estatisticas(usuario_id)
         concluidas: list[dict] = []
-        for registro in self.missions.list_usuario_missoes(usuario_id):
+        for registro in self.missoes.listar_usuario_missoes(usuario_id):
             if registro.concluida:
                 continue
-            missao = self.missions.get_missao(registro.missao_id)
+            missao = self.missoes.buscar_missao(registro.missao_id)
             if not missao:
                 continue
             progresso = stats["carimbos"] if missao.tipo == "carimbos" else stats["visitados"]
@@ -83,12 +83,12 @@ class GamificationService:
             if registro.progresso >= missao.objetivo_quantidade:
                 registro.concluida = True
                 registro.data_conclusao = datetime.utcnow()
-                self.missions.salvar(registro)
+                self.missoes.salvar(registro)
                 if missao.xp:
                     self.conceder_xp(usuario_id, missao.xp)
                 concluidas.append({"id": missao.id, "nome": missao.nome, "xp": missao.xp})
             else:
-                self.missions.salvar(registro)
+                self.missoes.salvar(registro)
         return concluidas
 
     def processar_checkin(
@@ -97,55 +97,82 @@ class GamificationService:
         ponto_id: int,
         latitude: float | None,
         longitude: float | None,
-        raio_m: int = DEFAULT_CHECKIN_RADIUS_M,
+        raio_m: int = RAIO_PADRAO_CHECKIN_METROS,
     ) -> dict:
-        ponto = self.content.get_ponto(ponto_id)
+        ponto = self.conteudo.buscar_ponto_por_id(ponto_id)
         if not ponto:
             raise ValueError("Ponto turístico não encontrado.")
 
-        distancia = None
-        if (
-            latitude is not None
-            and longitude is not None
-            and ponto.get("latitude") is not None
-            and ponto.get("longitude") is not None
-        ):
-            distancia = haversine_m(
-                latitude, longitude, ponto["latitude"], ponto["longitude"]
-            )
-            if distancia > raio_m:
-                raise ValueError(
-                    f"Você está muito longe de {ponto['nome']} para fazer check-in "
-                    f"(aprox. {int(distancia)}m). Aproxime-se do local."
-                )
+        distancia = self._validar_distancia_checkin(ponto, latitude, longitude, raio_m)
 
-        xp_inicial = self.kapipass.get_or_create_usuario_xp(usuario_id)
+        xp_inicial = self.kapipass.obter_ou_criar_usuario_xp(usuario_id)
         xp_antes = xp_inicial.xp_total
         nivel_antes = xp_inicial.nivel_atual
 
         primeira_visita = not self.kapipass.tem_checkin(usuario_id, ponto_id)
         checkin = self.kapipass.criar_checkin(usuario_id, ponto_id, latitude, longitude)
 
-        novo_carimbo = None
-        if primeira_visita:
-            carimbo = self.kapipass.get_carimbo_por_ponto(ponto_id)
-            if carimbo and not self.kapipass.tem_carimbo(usuario_id, carimbo.id):
-                self.kapipass.conceder_carimbo(usuario_id, carimbo.id)
-                self.conceder_xp(usuario_id, carimbo.xp_recompensa or 0)
-                novo_carimbo = self._serialize_carimbo(carimbo, obtido=True)
-
+        novo_carimbo = self._conceder_carimbo_se_primeira_visita(usuario_id, ponto_id, primeira_visita)
         novas_conquistas = self.avaliar_conquistas(usuario_id)
         self.avaliar_missoes(usuario_id)
-        if primeira_visita:
-            self.diary.create(
-                usuario_id=usuario_id,
-                ponto_turistico_id=ponto_id,
-                checkin_id=checkin.id,
-                comentario=f"Visitei {ponto['nome']}.",
-                foto=ponto.get("url_img"),
-            )
-        xp_final = self.kapipass.get_or_create_usuario_xp(usuario_id)
+        self._registrar_diario_primeira_visita(usuario_id, ponto_id, ponto, checkin, primeira_visita)
 
+        xp_final = self.kapipass.obter_ou_criar_usuario_xp(usuario_id)
+        return self._montar_resposta_checkin(
+            checkin, ponto, primeira_visita, distancia,
+            xp_antes, xp_final, nivel_antes, novo_carimbo, novas_conquistas,
+        )
+
+    def _validar_distancia_checkin(
+        self, ponto: dict, latitude: float | None, longitude: float | None, raio_m: int
+    ) -> float | None:
+        if (
+            latitude is None
+            or longitude is None
+            or ponto.get("latitude") is None
+            or ponto.get("longitude") is None
+        ):
+            return None
+
+        distancia = calcular_distancia_haversine_metros(
+            latitude, longitude, ponto["latitude"], ponto["longitude"]
+        )
+        if distancia > raio_m:
+            raise ValueError(
+                f"Você está muito longe de {ponto['nome']} para fazer check-in "
+                f"(aprox. {int(distancia)}m). Aproxime-se do local."
+            )
+        return distancia
+
+    def _conceder_carimbo_se_primeira_visita(
+        self, usuario_id: int, ponto_id: int, primeira_visita: bool
+    ) -> dict | None:
+        if not primeira_visita:
+            return None
+        carimbo = self.kapipass.buscar_carimbo_por_ponto(ponto_id)
+        if not carimbo or self.kapipass.tem_carimbo(usuario_id, carimbo.id):
+            return None
+        self.kapipass.conceder_carimbo(usuario_id, carimbo.id)
+        self.conceder_xp(usuario_id, carimbo.xp_recompensa or 0)
+        return self._serializar_carimbo(carimbo, obtido=True)
+
+    def _registrar_diario_primeira_visita(
+        self, usuario_id: int, ponto_id: int, ponto: dict, checkin, primeira_visita: bool
+    ) -> None:
+        if not primeira_visita:
+            return
+        self.diario.criar(
+            usuario_id=usuario_id,
+            ponto_turistico_id=ponto_id,
+            checkin_id=checkin.id,
+            comentario=f"Visitei {ponto['nome']}.",
+            foto=ponto.get("url_img"),
+        )
+
+    def _montar_resposta_checkin(
+        self, checkin, ponto, primeira_visita, distancia,
+        xp_antes, xp_final, nivel_antes, novo_carimbo, novas_conquistas,
+    ) -> dict:
         return {
             "checkin": {
                 "id": checkin.id,
@@ -168,11 +195,11 @@ class GamificationService:
             else "Visita registrada! Você já coletou o carimbo deste local.",
         }
 
-    def get_passaporte(self, usuario_id: int) -> dict:
-        user = self.auth.get_user(usuario_id)
-        if not user:
+    def obter_passaporte(self, usuario_id: int) -> dict:
+        usuario = self.autenticacao.buscar_usuario_por_id(usuario_id)
+        if not usuario:
             raise ValueError("Usuário não encontrado.")
-        registro = self.kapipass.get_or_create_usuario_xp(usuario_id)
+        registro = self.kapipass.obter_ou_criar_usuario_xp(usuario_id)
         nivel = self.kapipass.nivel_para_xp(registro.xp_total)
         proximo = self.kapipass.proximo_nivel(registro.xp_total)
 
@@ -182,11 +209,11 @@ class GamificationService:
         faixa = max(1, xp_proximo - xp_nivel_atual)
         progresso_nivel = min(100, round(((xp_total - xp_nivel_atual) / faixa) * 100)) if proximo else 100
 
-        total_carimbos = len(self.kapipass.list_carimbos())
-        carimbos_obtidos = self.kapipass.count_carimbos(usuario_id)
-        total_conquistas = len(self.kapipass.list_conquistas())
-        conquistas_obtidas = self.kapipass.count_conquistas(usuario_id)
-        visitados = self.kapipass.count_pontos_visitados(usuario_id)
+        total_carimbos = len(self.kapipass.listar_carimbos())
+        carimbos_obtidos = self.kapipass.contar_carimbos(usuario_id)
+        total_conquistas = len(self.kapipass.listar_conquistas())
+        conquistas_obtidas = self.kapipass.contar_conquistas(usuario_id)
+        visitados = self.kapipass.contar_pontos_visitados(usuario_id)
 
         progresso_geral = round(
             (
@@ -199,9 +226,9 @@ class GamificationService:
 
         return {
             "usuario": {
-                "id": user["id"],
-                "nome": user["nome"],
-                "email": user["email"],
+                "id": usuario["id"],
+                "nome": usuario["nome"],
+                "email": usuario["email"],
             },
             "nivel": {
                 "atual": registro.nivel_atual,
@@ -220,39 +247,39 @@ class GamificationService:
             "progresso_geral": progresso_geral,
         }
 
-    def list_niveis(self) -> list[dict]:
+    def listar_niveis(self) -> list[dict]:
         return [
             {"id": n.id, "nome": n.nome, "xp_minimo": n.xp_minimo, "ordem": n.ordem}
-            for n in self.kapipass.list_niveis()
+            for n in self.kapipass.listar_niveis()
         ]
 
-    def list_carimbos(self, usuario_id: int) -> list[dict]:
-        obtidos = {uc.carimbo_id: uc for uc in self.kapipass.list_usuario_carimbos(usuario_id)}
+    def listar_carimbos(self, usuario_id: int) -> list[dict]:
+        obtidos = {uc.carimbo_id: uc for uc in self.kapipass.listar_usuario_carimbos(usuario_id)}
         resultado = []
-        for carimbo in self.kapipass.list_carimbos():
+        for carimbo in self.kapipass.listar_carimbos():
             uc = obtidos.get(carimbo.id)
-            data = self._serialize_carimbo(carimbo, obtido=uc is not None)
+            data = self._serializar_carimbo(carimbo, obtido=uc is not None)
             data["data_obtencao"] = uc.data_obtencao.isoformat() if uc else None
             resultado.append(data)
         return resultado
 
-    def list_conquistas(self, usuario_id: int) -> list[dict]:
-        obtidas = {uc.conquista_id: uc for uc in self.kapipass.list_usuario_conquistas(usuario_id)}
+    def listar_conquistas(self, usuario_id: int) -> list[dict]:
+        obtidas = {uc.conquista_id: uc for uc in self.kapipass.listar_usuario_conquistas(usuario_id)}
         resultado = []
-        for conquista in self.kapipass.list_conquistas():
+        for conquista in self.kapipass.listar_conquistas():
             uc = obtidas.get(conquista.id)
-            data = self._serialize_conquista(conquista, desbloqueada=uc is not None)
+            data = self._serializar_conquista(conquista, desbloqueada=uc is not None)
             data["data_desbloqueio"] = uc.data_desbloqueio.isoformat() if uc else None
             resultado.append(data)
         return resultado
 
-    def list_checkins(self, usuario_id: int) -> list[dict]:
-        checkins = self.kapipass.list_checkins(usuario_id)
-        ponto_ids = [c.ponto_turistico_id for c in checkins]
-        pontos_map = {p["id"]: p for p in self.content.get_pontos_by_ids(ponto_ids)}
+    def listar_checkins(self, usuario_id: int) -> list[dict]:
+        checkins = self.kapipass.listar_checkins(usuario_id)
+        ids_pontos = [c.ponto_turistico_id for c in checkins]
+        mapa_pontos = {p["id"]: p for p in self.conteudo.buscar_pontos_por_ids(ids_pontos)}
         resultado = []
         for checkin in checkins:
-            ponto = pontos_map.get(checkin.ponto_turistico_id)
+            ponto = mapa_pontos.get(checkin.ponto_turistico_id)
             resultado.append(
                 {
                     "id": checkin.id,
@@ -266,7 +293,7 @@ class GamificationService:
             )
         return resultado
 
-    def _serialize_carimbo(self, carimbo, obtido: bool) -> dict:
+    def _serializar_carimbo(self, carimbo, obtido: bool) -> dict:
         return {
             "id": carimbo.id,
             "ponto_turistico_id": carimbo.ponto_turistico_id,
@@ -278,7 +305,7 @@ class GamificationService:
             "obtido": obtido,
         }
 
-    def _serialize_conquista(self, conquista, desbloqueada: bool) -> dict:
+    def _serializar_conquista(self, conquista, desbloqueada: bool) -> dict:
         return {
             "id": conquista.id,
             "codigo": conquista.codigo,
@@ -290,30 +317,29 @@ class GamificationService:
         }
 
 
-class CollectionService:
-    def __init__(self, db: Session):
-        self.collections = CollectionRepository(db)
-        self.kapipass = KapiPassRepository(db)
-        self.content = ContentClient()
+class ServicoColecao:
+    def __init__(self, sessao: Session):
+        self.colecoes = RepositorioColecao(sessao)
+        self.kapipass = RepositorioKapiPass(sessao)
+        self.conteudo = ClienteConteudo()
 
-    def list_colecoes(self, usuario_id: int) -> list[dict]:
-        visitados = {c.ponto_turistico_id for c in self.kapipass.list_checkins(usuario_id)}
+    def listar_colecoes(self, usuario_id: int) -> list[dict]:
+        visitados = {c.ponto_turistico_id for c in self.kapipass.listar_checkins(usuario_id)}
         resultado = []
-        for colecao in self.collections.list_colecoes():
-            ponto_ids = self.collections.list_pontos_da_colecao(colecao.id)
-            total = len(ponto_ids)
-            concluidos = sum(1 for pid in ponto_ids if pid in visitados)
+        for colecao in self.colecoes.listar_colecoes():
+            ids_pontos = self.colecoes.listar_pontos_da_colecao(colecao.id)
+            total = len(ids_pontos)
+            concluidos = sum(1 for pid in ids_pontos if pid in visitados)
             percentual = round((concluidos / total) * 100) if total else 0
-            pontos = []
-            for ponto in self.content.get_pontos_by_ids(ponto_ids):
-                pontos.append(
-                    {
-                        "id": ponto["id"],
-                        "nome": ponto["nome"],
-                        "url_img": ponto.get("url_img"),
-                        "visitado": ponto["id"] in visitados,
-                    }
-                )
+            pontos = [
+                {
+                    "id": ponto["id"],
+                    "nome": ponto["nome"],
+                    "url_img": ponto.get("url_img"),
+                    "visitado": ponto["id"] in visitados,
+                }
+                for ponto in self.conteudo.buscar_pontos_por_ids(ids_pontos)
+            ]
             resultado.append(
                 {
                     "id": colecao.id,
@@ -329,16 +355,16 @@ class CollectionService:
         return resultado
 
 
-class MissionService:
-    def __init__(self, db: Session):
-        self.missions = MissionRepository(db)
-        self.gamification = GamificationService(db)
+class ServicoMissao:
+    def __init__(self, sessao: Session):
+        self.missoes = RepositorioMissao(sessao)
+        self.gamificacao = ServicoGamificacao(sessao)
 
-    def list_missoes(self, usuario_id: int) -> list[dict]:
-        self.gamification.avaliar_missoes(usuario_id)
-        aceitas = {m.missao_id: m for m in self.missions.list_usuario_missoes(usuario_id)}
+    def listar_missoes(self, usuario_id: int) -> list[dict]:
+        self.gamificacao.avaliar_missoes(usuario_id)
+        aceitas = {m.missao_id: m for m in self.missoes.listar_usuario_missoes(usuario_id)}
         resultado = []
-        for missao in self.missions.list_ativas():
+        for missao in self.missoes.listar_ativas():
             registro = aceitas.get(missao.id)
             resultado.append(
                 {
@@ -358,50 +384,49 @@ class MissionService:
         return resultado
 
     def aceitar(self, usuario_id: int, missao_id: int) -> dict:
-        missao = self.missions.get_missao(missao_id)
+        missao = self.missoes.buscar_missao(missao_id)
         if not missao or not missao.ativo:
             raise ValueError("Missão não encontrada ou inativa.")
-        if self.missions.get_usuario_missao(usuario_id, missao_id):
+        if self.missoes.buscar_usuario_missao(usuario_id, missao_id):
             raise ValueError("Você já aceitou esta missão.")
-        self.missions.aceitar(usuario_id, missao_id)
-        self.gamification.avaliar_missoes(usuario_id)
+        self.missoes.aceitar(usuario_id, missao_id)
+        self.gamificacao.avaliar_missoes(usuario_id)
         return {"success": True, "message": "Missão aceita!"}
 
 
-class EcoService:
-    def __init__(self, db: Session):
-        self.eco = EcoRepository(db)
-        self.gamification = GamificationService(db)
+class ServicoEco:
+    def __init__(self, sessao: Session):
+        self.eco = RepositorioEco(sessao)
+        self.gamificacao = ServicoGamificacao(sessao)
 
-    def list_atividades(self, usuario_id: int) -> dict:
+    def listar_atividades(self, usuario_id: int) -> dict:
         registradas = {}
-        for r in self.eco.list_usuario_atividades(usuario_id):
+        for r in self.eco.listar_usuario_atividades(usuario_id):
             registradas[r.eco_atividade_id] = registradas.get(r.eco_atividade_id, 0) + 1
-        atividades = []
-        for atividade in self.eco.list_atividades():
-            atividades.append(
-                {
-                    "id": atividade.id,
-                    "nome": atividade.nome,
-                    "descricao": atividade.descricao,
-                    "tipo": atividade.tipo,
-                    "pontuacao_eco": atividade.pontuacao_eco,
-                    "xp_recompensa": atividade.xp_recompensa,
-                    "vezes_registrada": registradas.get(atividade.id, 0),
-                }
-            )
+        atividades = [
+            {
+                "id": atividade.id,
+                "nome": atividade.nome,
+                "descricao": atividade.descricao,
+                "tipo": atividade.tipo,
+                "pontuacao_eco": atividade.pontuacao_eco,
+                "xp_recompensa": atividade.xp_recompensa,
+                "vezes_registrada": registradas.get(atividade.id, 0),
+            }
+            for atividade in self.eco.listar_atividades()
+        ]
         return {
             "pontuacao_eco_total": self.eco.pontuacao_total(usuario_id),
             "atividades": atividades,
         }
 
     def registrar(self, usuario_id: int, atividade_id: int) -> dict:
-        atividade = self.eco.get_atividade(atividade_id)
+        atividade = self.eco.buscar_atividade(atividade_id)
         if not atividade:
             raise ValueError("Atividade ecológica não encontrada.")
         self.eco.registrar(usuario_id, atividade_id, atividade.pontuacao_eco or 0)
         if atividade.xp_recompensa:
-            self.gamification.conceder_xp(usuario_id, atividade.xp_recompensa)
+            self.gamificacao.conceder_xp(usuario_id, atividade.xp_recompensa)
         return {
             "success": True,
             "message": f"Atividade registrada! +{atividade.pontuacao_eco} EcoPontos.",
@@ -409,18 +434,18 @@ class EcoService:
         }
 
 
-class DiaryService:
-    def __init__(self, db: Session):
-        self.diary = DiaryRepository(db)
-        self.content = ContentClient()
+class ServicoDiario:
+    def __init__(self, sessao: Session):
+        self.diario = RepositorioDiario(sessao)
+        self.conteudo = ClienteConteudo()
 
-    def list_entradas(self, usuario_id: int) -> list[dict]:
+    def listar_entradas(self, usuario_id: int) -> list[dict]:
+        entradas = self.diario.listar_por_usuario(usuario_id)
+        ids_pontos = [e.ponto_turistico_id for e in entradas if e.ponto_turistico_id]
+        mapa_pontos = {p["id"]: p for p in self.conteudo.buscar_pontos_por_ids(ids_pontos)}
         resultado = []
-        entradas = self.diary.list_by_user(usuario_id)
-        ponto_ids = [e.ponto_turistico_id for e in entradas if e.ponto_turistico_id]
-        pontos_map = {p["id"]: p for p in self.content.get_pontos_by_ids(ponto_ids)}
         for entrada in entradas:
-            ponto = pontos_map.get(entrada.ponto_turistico_id) if entrada.ponto_turistico_id else None
+            ponto = mapa_pontos.get(entrada.ponto_turistico_id) if entrada.ponto_turistico_id else None
             resultado.append(
                 {
                     "id": entrada.id,
@@ -443,7 +468,7 @@ class DiaryService:
         comentario: str | None,
         foto: str | None,
     ) -> dict:
-        entrada = self.diary.create(usuario_id, ponto_turistico_id, checkin_id, comentario, foto)
+        entrada = self.diario.criar(usuario_id, ponto_turistico_id, checkin_id, comentario, foto)
         return {
             "id": entrada.id,
             "usuario_id": entrada.usuario_id,
@@ -455,16 +480,16 @@ class DiaryService:
         }
 
 
-class TreasureService:
-    def __init__(self, db: Session):
-        self.treasures = TreasureRepository(db)
-        self.kapipass = KapiPassRepository(db)
-        self.gamification = GamificationService(db)
+class ServicoTesouro:
+    def __init__(self, sessao: Session):
+        self.tesouros = RepositorioTesouro(sessao)
+        self.kapipass = RepositorioKapiPass(sessao)
+        self.gamificacao = ServicoGamificacao(sessao)
 
-    def list_tesouros(self, usuario_id: int) -> list[dict]:
-        concluidos = {t.tesouro_id for t in self.treasures.list_usuario_tesouros(usuario_id)}
+    def listar_tesouros(self, usuario_id: int) -> list[dict]:
+        concluidos = {t.tesouro_id for t in self.tesouros.listar_usuario_tesouros(usuario_id)}
         resultado = []
-        for tesouro in self.treasures.list_tesouros():
+        for tesouro in self.tesouros.listar_tesouros():
             concluido = tesouro.id in concluidos
             resultado.append(
                 {
@@ -481,13 +506,21 @@ class TreasureService:
         return resultado
 
     def concluir(self, usuario_id: int, tesouro_id: int) -> dict:
-        tesouro = self.treasures.get_tesouro(tesouro_id)
+        tesouro = self.tesouros.buscar_tesouro(tesouro_id)
         if not tesouro:
             raise ValueError("Tesouro não encontrado.")
-        if self.treasures.ja_concluido(usuario_id, tesouro_id):
+        if self.tesouros.ja_concluido(usuario_id, tesouro_id):
             raise ValueError("Você já concluiu este tesouro.")
-        self.treasures.concluir(usuario_id, tesouro_id)
+        self.tesouros.concluir(usuario_id, tesouro_id)
 
+        recompensas = self._aplicar_recompensas_tesouro(usuario_id, tesouro)
+        return {
+            "success": True,
+            "message": "Tesouro encontrado!",
+            "recompensas": recompensas,
+        }
+
+    def _aplicar_recompensas_tesouro(self, usuario_id: int, tesouro) -> list[str]:
         recompensas = []
         if tesouro.carimbo_id and not self.kapipass.tem_carimbo(usuario_id, tesouro.carimbo_id):
             self.kapipass.conceder_carimbo(usuario_id, tesouro.carimbo_id)
@@ -496,55 +529,47 @@ class TreasureService:
             self.kapipass.conceder_conquista(usuario_id, tesouro.conquista_id)
             recompensas.append("conquista especial")
         if tesouro.xp_bonus:
-            self.gamification.conceder_xp(usuario_id, tesouro.xp_bonus)
+            self.gamificacao.conceder_xp(usuario_id, tesouro.xp_bonus)
             recompensas.append(f"+{tesouro.xp_bonus} XP")
-
-        return {
-            "success": True,
-            "message": "Tesouro encontrado!",
-            "recompensas": recompensas,
-        }
+        return recompensas
 
 
-class RankingService:
+class ServicoRanking:
     CATEGORIAS = {"exploradores", "trilheiros", "colecionadores", "ecopass", "xp"}
 
-    def __init__(self, db: Session):
-        self.rankings = RankingRepository(db)
-        self.auth = AuthClient()
+    def __init__(self, sessao: Session):
+        self.rankings = RepositorioRanking(sessao)
+        self.autenticacao = ClienteAutenticacao()
 
-    def get_ranking(self, categoria: str, page: int = 1, size: int = 20) -> dict:
+    def obter_ranking(self, categoria: str, pagina: int = 1, tamanho: int = 20) -> dict:
         categoria = (categoria or "exploradores").lower()
-        page = max(1, page)
-        size = max(1, min(size, 100))
+        pagina = max(1, pagina)
+        tamanho = max(1, min(tamanho, 100))
 
-        if categoria == "colecionadores":
-            linhas = self.rankings.ranking_carimbos(page, size)
-            unidade = "carimbos"
-        elif categoria == "ecopass":
-            linhas = self.rankings.ranking_eco(page, size)
-            unidade = "ecopontos"
-        elif categoria == "xp":
-            linhas = self.rankings.ranking_xp(page, size)
-            unidade = "xp"
-        else:
-            linhas = self.rankings.ranking_checkins(page, size)
-            unidade = "locais"
-
-        user_ids = [int(row[0]) for row in linhas]
-        users_map = self.auth.batch_users(user_ids)
-        inicio = (page - 1) * size
+        linhas, unidade = self._buscar_linhas_ranking(categoria, pagina, tamanho)
+        ids_usuarios = [int(linha[0]) for linha in linhas]
+        mapa_usuarios = self.autenticacao.buscar_usuarios_em_lote(ids_usuarios)
+        inicio = (pagina - 1) * tamanho
         itens = []
-        for i, row in enumerate(linhas):
-            usuario_id = int(row[0])
-            user = users_map.get(usuario_id)
+        for i, linha in enumerate(linhas):
+            usuario_id = int(linha[0])
+            usuario = mapa_usuarios.get(usuario_id)
             itens.append(
                 {
                     "posicao": inicio + i + 1,
                     "usuario_id": usuario_id,
-                    "nome": user["nome"] if user else f"Usuário {usuario_id}",
-                    "valor": int(row[1] if categoria == "xp" else row[1]),
+                    "nome": usuario["nome"] if usuario else f"Usuário {usuario_id}",
+                    "valor": int(linha[1] if categoria == "xp" else linha[1]),
                     "unidade": unidade,
                 }
             )
-        return {"categoria": categoria, "page": page, "size": size, "itens": itens}
+        return {"categoria": categoria, "page": pagina, "size": tamanho, "itens": itens}
+
+    def _buscar_linhas_ranking(self, categoria: str, pagina: int, tamanho: int) -> tuple:
+        if categoria == "colecionadores":
+            return self.rankings.ranking_carimbos(pagina, tamanho), "carimbos"
+        if categoria == "ecopass":
+            return self.rankings.ranking_eco(pagina, tamanho), "ecopontos"
+        if categoria == "xp":
+            return self.rankings.ranking_xp(pagina, tamanho), "xp"
+        return self.rankings.ranking_checkins(pagina, tamanho), "locais"

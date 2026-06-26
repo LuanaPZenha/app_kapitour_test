@@ -1,5 +1,7 @@
 node_modules
 .expo/
+__pycache__/
+*.py[cod]
 
 # Variáveis de ambiente / segredos
 .env
