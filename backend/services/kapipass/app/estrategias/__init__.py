@@ -1,9 +1,3 @@
-from app.estrategias.conquistas import REGISTRO_CRITERIOS_CONQUISTA
-from app.estrategias.missoes import REGISTRO_ESTRATEGIAS_MISSAO
-from app.estrategias.ranking import REGISTRO_ESTRATEGIAS_RANKING
+"""Compatibilidade."""
 
-__all__ = [
-    "REGISTRO_CRITERIOS_CONQUISTA",
-    "REGISTRO_ESTRATEGIAS_MISSAO",
-    "REGISTRO_ESTRATEGIAS_RANKING",
-]
+from app.dominio.estrategias import *  # noqa: F403

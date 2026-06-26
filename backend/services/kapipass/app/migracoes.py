@@ -2,7 +2,7 @@ import time
 
 from sqlalchemy.orm import Session
 
-from app.modelos import (
+from app.infraestrutura.persistencia.modelos import (
     Colecao,
     ColecaoPonto,
     Conquista,

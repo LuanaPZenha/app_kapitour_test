@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Session
 
-from app.modelos import PontoTuristico
+from app.infraestrutura.persistencia.modelos import PontoTuristico
 from kapitour_shared.banco_dados import BaseModelo, motor_banco
 
 

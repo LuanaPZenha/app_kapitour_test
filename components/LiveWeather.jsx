@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { View, Text, Image, StyleSheet, ActivityIndicator } from "react-native";
-import { useFocusEffect } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import { colors } from "../theme/colors";
 import { spacing } from "../theme/spacing";
@@ -52,13 +51,6 @@ export default function LiveWeather({ onInfo }) {
     const id = setInterval(fetchNow, 10 * 60 * 1000);
     return () => clearInterval(id);
   }, [fetchNow]);
-
-  // Rebusca ao voltar o foco para a Home
-  useFocusEffect(
-    useCallback(() => {
-      fetchNow();
-    }, [fetchNow])
-  );
 
   // Relógio de Brasília em tempo real (1s)
   useEffect(() => {

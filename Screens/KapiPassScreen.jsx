@@ -15,6 +15,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import * as Location from "expo-location";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFonts } from "expo-font";
 
 import { kapipassApi, dbApi } from "../lib/api";
@@ -202,16 +203,30 @@ export default function KapiPassScreen() {
       });
       const { latitude, longitude } = loc.coords;
 
-      const { data: pontos, error } = await dbApi.listPontos();
-      if (error || !pontos?.length) {
-        showAlert({
-          icon: "alert-circle-outline",
-          iconColor: colors.primary,
-          title: "Erro",
-          message: error?.message || "Não foi possível carregar os pontos turísticos.",
-          buttons: [{ text: "OK" }],
-        });
-        return;
+      let pontos = null;
+      try {
+        const cached = await AsyncStorage.getItem("cache:pontos:all");
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          if (Date.now() - parsed.ts < 15 * 60 * 1000) {
+            pontos = parsed.data;
+          }
+        }
+      } catch {}
+
+      if (!pontos?.length) {
+        const { data, error } = await dbApi.listPontos();
+        if (error || !data?.length) {
+          showAlert({
+            icon: "alert-circle-outline",
+            iconColor: colors.primary,
+            title: "Erro",
+            message: error?.message || "Não foi possível carregar os pontos turísticos.",
+            buttons: [{ text: "OK" }],
+          });
+          return;
+        }
+        pontos = data;
       }
 
       const comCoord = pontos.filter((p) => p.latitude != null && p.longitude != null);

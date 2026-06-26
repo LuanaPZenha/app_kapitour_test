@@ -144,31 +144,22 @@ export default function Rotas() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [favoritos, setFavoritos] = useState([]);
-  const [userInfo, setUserInfo] = useState(null);
-  const { user } = useAuth();
+  const { user, userInfo: authUserInfo } = useAuth();
   const { showAlert } = useAppAlert();
 
-  const fetchUserInfo = useCallback(async () => {
-    if (!user?.id) return;
-    try {
-      const { data } = await dbApi.getUserByAuthId(user.id);
-      if (data) setUserInfo(data);
-    } catch {}
-  }, [user]);
-
   const fetchFavoritos = useCallback(async () => {
-    if (!user?.id) return;
+    if (!authUserInfo?.id) return;
     try {
-      const { data: userData } = await dbApi.getUserByAuthId(user.id);
-      if (!userData) return;
-      const { data } = await dbApi.listFavoritos(userData.id);
+      const { data } = await dbApi.listFavoritos(authUserInfo.id);
       setFavoritos((data || []).map((f) => f.ponto_id));
     } catch {}
-  }, [user]);
+  }, [authUserInfo]);
 
   const fetchRotas = useCallback(async () => {
     const { data: rotasData, error } = await dbApi.listRotas();
     if (error) return;
+
+    const { data: categorias } = await dbApi.listCategorias();
 
     const completas = await Promise.all(
       (rotasData || []).map(async (rota) => {
@@ -182,7 +173,6 @@ export default function Rotas() {
 
         const { data: pontos } = await dbApi.getPontosByIds([primeiroPontoId]);
         const { data: pontoCategorias } = await dbApi.listPontoCategoriaByPontos(pontoIds);
-        const { data: categorias } = await dbApi.listCategorias();
 
         const catIds = [...new Set((pontoCategorias || []).map((pc) => pc.categoria_id))];
         const catNomes = (categorias || [])
@@ -204,10 +194,10 @@ export default function Rotas() {
 
   useEffect(() => {
     (async () => {
-      await Promise.all([fetchRotas(), fetchUserInfo(), fetchFavoritos()]);
+      await Promise.all([fetchRotas(), fetchFavoritos()]);
       setLoading(false);
     })();
-  }, [fetchRotas, fetchUserInfo, fetchFavoritos]);
+  }, [fetchRotas, fetchFavoritos]);
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -218,7 +208,7 @@ export default function Rotas() {
   const isFavorito = (pontoId) => favoritos.includes(pontoId);
 
   const toggleFavorito = async (pontoId) => {
-    if (!user?.id || !userInfo) {
+    if (!user?.id || !authUserInfo) {
       showAlert({
         icon: "person-outline",
         iconColor: colors.accent,
@@ -230,10 +220,10 @@ export default function Rotas() {
     }
     try {
       if (isFavorito(pontoId)) {
-        await dbApi.removeFavorito(userInfo.id, pontoId);
+        await dbApi.removeFavorito(authUserInfo.id, pontoId);
         setFavoritos((prev) => prev.filter((id) => id !== pontoId));
       } else {
-        await dbApi.addFavorito(userInfo.id, pontoId);
+        await dbApi.addFavorito(authUserInfo.id, pontoId);
         setFavoritos((prev) => [...prev, pontoId]);
       }
     } catch (err) {

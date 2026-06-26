@@ -110,7 +110,7 @@ function EmptyFav({ text, icon }) {
 
 const AreaUsuario = () => {
   const navigation = useNavigation();
-  const { user, signOut } = useAuth();
+  const { user, userInfo: authUserInfo, signOut, loading: authLoading } = useAuth();
   const { showAlert } = useAppAlert();
 
   const [userInfo, setUserInfo] = useState(null);
@@ -133,44 +133,31 @@ const AreaUsuario = () => {
   const [rotaSelecionada, setRotaSelecionada] = useState(null);
 
   useEffect(() => {
+    if (authLoading) return;
     if (!user?.id) {
       setLoading(false);
       return;
     }
-    (async () => {
-      try {
-        const { data, error } = await dbApi.getUserByAuthId(user.id);
-        if (error || !data) return;
-        setUserInfo(data);
-        setNome(data.nome || "");
-        setEmail(data.email || "");
-        setCpf(data.cpf || "");
-        setSexo(data.sexo || "");
-        setTipoUsuarioId(data.tipo_usuario_id);
-      } catch {}
-      finally {
-        setLoading(false);
-      }
-    })();
-  }, [user]);
+    if (authUserInfo) {
+      setUserInfo(authUserInfo);
+      setNome(authUserInfo.nome || "");
+      setEmail(authUserInfo.email || "");
+      setCpf(authUserInfo.cpf || "");
+      setSexo(authUserInfo.sexo || "");
+      setTipoUsuarioId(authUserInfo.tipo_usuario_id);
+    }
+    setLoading(false);
+  }, [user, authUserInfo, authLoading]);
 
-  const fetchFavoritos = useCallback(async () => {
-    if (!userInfo) return;
+  const carregarFavoritosEPerfis = useCallback(async () => {
+    if (!authUserInfo?.id) return;
     setLoadingFavoritos(true);
     try {
-      const { data } = await dbApi.listFavoritos(userInfo.id);
-      setFavoritos(data || []);
-    } catch {}
-    finally {
-      setLoadingFavoritos(false);
-    }
-  }, [userInfo]);
+      const { data: favData } = await dbApi.listFavoritos(authUserInfo.id);
+      const listaFavoritos = favData || [];
+      setFavoritos(listaFavoritos);
 
-  const fetchRotasFavoritas = useCallback(async () => {
-    if (!userInfo) return;
-    try {
-      const { data: favData } = await dbApi.listFavoritos(userInfo.id);
-      const pontoIds = (favData || []).map((f) => f.ponto_id);
+      const pontoIds = listaFavoritos.map((f) => f.ponto_id);
       if (pontoIds.length === 0) {
         setRotasFavoritas([]);
         return;
@@ -190,24 +177,21 @@ const AreaUsuario = () => {
         filtradas.map(async (rota) => {
           const { data: rp } = await dbApi.listRotaPontoByRota(rota.id);
           const primId = rp?.[0]?.ponto_id;
-          const { data: pts } = await dbApi.getPontosByIds([primId]);
+          const { data: pts } = await dbApi.getPontosByIds(primId ? [primId] : []);
           return { ...rota, imagem: pts?.[0]?.url_img || null, pontoCount: rp?.length ?? 0 };
         })
       );
       setRotasFavoritas(completas);
     } catch {}
-  }, [userInfo]);
-
-  useEffect(() => {
-    fetchFavoritos();
-    fetchRotasFavoritas();
-  }, [fetchFavoritos, fetchRotasFavoritas]);
+    finally {
+      setLoadingFavoritos(false);
+    }
+  }, [authUserInfo]);
 
   useFocusEffect(
     React.useCallback(() => {
-      fetchFavoritos();
-      fetchRotasFavoritas();
-    }, [fetchFavoritos, fetchRotasFavoritas])
+      carregarFavoritosEPerfis();
+    }, [carregarFavoritosEPerfis])
   );
 
   const handleSave = async () => {

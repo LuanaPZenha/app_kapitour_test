@@ -2,7 +2,7 @@ from datetime import date, datetime
 
 from sqlalchemy.orm import Session
 
-from app.modelos import Campanha, Cupom, Estoque, Produto, TipoProduto
+from app.infraestrutura.persistencia.modelos import Campanha, Cupom, Estoque, Produto, TipoProduto
 from kapitour_shared.banco_dados import BaseModelo, motor_banco
 
 

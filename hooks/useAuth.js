@@ -1,5 +1,9 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
-import { apiAutenticacao, apiTurismo } from "../lib/api";
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from "react";
+import {
+  entrarUsuario,
+  obterSessaoAtual,
+  sairUsuario,
+} from "../lib/aplicacao/casos-de-uso/autenticacao";
 
 const ContextoAutenticacao = createContext(null);
 
@@ -8,66 +12,54 @@ export function ProvedorAutenticacao({ children }) {
   const [dadosUsuario, setDadosUsuario] = useState(null);
   const [carregando, setCarregando] = useState(true);
 
-  const carregarDadosUsuario = useCallback(async (authId) => {
-    const { data, error } = await apiTurismo.buscarUsuarioPorAuthId(authId);
-    if (error) {
-      console.log("Erro ao buscar usuário:", error);
-      return null;
-    }
-    setDadosUsuario(data);
-    return data;
+  const carregarSessao = useCallback(async () => {
+    const { usuarioSessao, dadosUsuario: perfil } = await obterSessaoAtual();
+    setUsuario(usuarioSessao);
+    setDadosUsuario(perfil);
   }, []);
 
   useEffect(() => {
     (async () => {
       try {
-        const { data } = await apiAutenticacao.obterSessao();
-        if (data?.session?.user) {
-          setUsuario(data.session.user);
-          await carregarDadosUsuario(data.session.user.id);
-        } else {
-          setUsuario(null);
-          setDadosUsuario(null);
-        }
+        await carregarSessao();
       } finally {
         setCarregando(false);
       }
     })();
-  }, [carregarDadosUsuario]);
+  }, [carregarSessao]);
 
-  const entrar = async (email, senha) => {
-    try {
-      const { data, error } = await apiAutenticacao.entrar(email, senha);
-      if (error) throw new Error(error.message);
-
-      const usuarioSessao = { id: data.user.auth_id, email: data.user.email };
-      setUsuario(usuarioSessao);
-      setDadosUsuario(data.user);
-      return { success: true, user: usuarioSessao };
-    } catch (erro) {
-      return { success: false, error: erro.message };
+  const entrar = useCallback(async (email, senha) => {
+    const resultado = await entrarUsuario(email, senha);
+    if (!resultado.success) {
+      return resultado;
     }
-  };
+    setUsuario(resultado.usuarioSessao);
+    setDadosUsuario(resultado.dadosUsuario);
+    return { success: true, user: resultado.usuarioSessao };
+  }, []);
 
-  const sair = async () => {
+  const sair = useCallback(async () => {
     try {
-      await apiAutenticacao.sair();
+      await sairUsuario();
       setUsuario(null);
       setDadosUsuario(null);
       return { success: true };
     } catch (erro) {
       return { success: false, error: erro.message };
     }
-  };
+  }, []);
 
-  const valor = {
-    user: usuario,
-    userInfo: dadosUsuario,
-    isLogged: dadosUsuario !== null,
-    loading: carregando,
-    signIn: entrar,
-    signOut: sair,
-  };
+  const valor = useMemo(
+    () => ({
+      user: usuario,
+      userInfo: dadosUsuario,
+      isLogged: dadosUsuario !== null,
+      loading: carregando,
+      signIn: entrar,
+      signOut: sair,
+    }),
+    [usuario, dadosUsuario, carregando, entrar, sair]
+  );
 
   return (
     <ContextoAutenticacao.Provider value={valor}>{children}</ContextoAutenticacao.Provider>
@@ -82,6 +74,5 @@ export function useAutenticacao() {
   return contexto;
 }
 
-// Compatibilidade com telas ainda não migradas
 export const AuthProvider = ProvedorAutenticacao;
 export const useAuth = useAutenticacao;

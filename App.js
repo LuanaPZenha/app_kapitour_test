@@ -129,7 +129,7 @@ function MainTabs() {
   return (
     <TabTransitionContext.Provider value={{ direction, animate: animateTabs }}>
       <Tab.Navigator
-        detachInactiveScreens={false}
+        detachInactiveScreens
         screenOptions={{
           headerShown: false,
           tabBarShowLabel: true,

@@ -1,21 +1,3 @@
-from app.validadores.cadeia_resgate import CadeiaValidacaoResgateCupom
-from app.validadores.contexto import ContextoResgateCupom
-from app.validadores.regras import (
-    ValidadorCampanhaAtiva,
-    ValidadorCupomDisponivel,
-    ValidadorCupomExiste,
-    ValidadorCupomExpirado,
-    ValidadorCupomParceiro,
-    ValidadorJaResgatado,
-)
+"""Compatibilidade — regras de domínio movidas para dominio/regras."""
 
-__all__ = [
-    "CadeiaValidacaoResgateCupom",
-    "ContextoResgateCupom",
-    "ValidadorCampanhaAtiva",
-    "ValidadorCupomDisponivel",
-    "ValidadorCupomExiste",
-    "ValidadorCupomExpirado",
-    "ValidadorCupomParceiro",
-    "ValidadorJaResgatado",
-]
+from app.dominio.regras import *  # noqa: F403

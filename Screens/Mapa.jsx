@@ -134,14 +134,8 @@ export default function Mapa() {
 
         let pontosData;
         if (categoriaId) {
-          const pontoCat = await dbApi.listPontoCategoriaByCategoria(categoriaId);
-          const ids = (pontoCat.data || []).map((p) => p.ponto_id);
-          if (ids.length === 0) {
-            setPontos([]);
-            return;
-          }
-          const allPontos = await dbApi.listPontos();
-          pontosData = (allPontos.data || []).filter((p) => ids.includes(p.id));
+          const result = await dbApi.listPontos(categoriaId);
+          pontosData = result.data;
         } else {
           const result = await dbApi.listPontos();
           pontosData = result.data;

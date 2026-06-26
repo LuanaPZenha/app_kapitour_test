@@ -73,13 +73,15 @@ export default function Home() {
 
   useEffect(() => {
     const interval = setInterval(() => {
-      const nextIndex = (currentIndex + 1) % PATROCINADORES.length;
-      flatListRef.current?.scrollToIndex({ index: nextIndex, animated: true });
-      setCurrentIndex(nextIndex);
+      setCurrentIndex((prev) => {
+        const nextIndex = (prev + 1) % PATROCINADORES.length;
+        flatListRef.current?.scrollToIndex({ index: nextIndex, animated: true });
+        return nextIndex;
+      });
     }, 4000);
 
     return () => clearInterval(interval);
-  }, [currentIndex]);
+  }, []);
 
   const renderPatrocinador = ({ item, index }) => {
     const inputRange = [
