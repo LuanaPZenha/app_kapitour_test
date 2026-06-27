@@ -30,6 +30,10 @@ class ConfiguracoesApp(BaseSettings):
     rate_limit_default: str = "100/minute"
     rate_limit_login: str = "5/minute"
     rate_limit_register: str = "3/minute"
+    rate_limit_forgot_password: str = "3/minute"
+    rate_limit_refresh: str = "10/minute"
+    rate_limit_checkin: str = "30/minute"
+    rate_limit_resgate_cupom: str = "10/minute"
 
     # URLs dos microserviços
     auth_service_url: str = "http://localhost:8001"

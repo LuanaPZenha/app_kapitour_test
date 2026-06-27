@@ -34,6 +34,9 @@ jobs:
       - name: Run all microservice tests
         run: python scripts/run_tests.py all
 
+      - name: Run shared tests with coverage gate (70%)
+        run: python scripts/run_tests.py shared --cov
+
   frontend-tests:
     name: Frontend (Jest)
     runs-on: ubuntu-latest
@@ -76,3 +79,26 @@ jobs:
               -t "kapitour-${service}:ci" \
               .
           done
+
+      - name: Build worker image
+        run: docker build -f backend/Dockerfile.worker -t kapitour-worker:ci .
+
+  smoke-api:
+    name: Smoke API (Docker Compose)
+    runs-on: ubuntu-latest
+    needs: [docker-build]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Start stack
+        run: |
+          mkdir -p database
+          docker compose up -d redis auth content commerce engagement kapipass gateway
+
+      - name: Run smoke tests
+        run: python backend/scripts/smoke_api.py --base-url http://localhost:8080 --wait 120
+
+      - name: Stop stack
+        if: always()
+        run: docker compose down -v

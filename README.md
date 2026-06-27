@@ -685,6 +685,38 @@ docker compose --profile postgres up -d
 
 **Swagger:** documentação enriquecida em commerce, engagement e kapipass (`/docs` em cada serviço ou via gateway).
 
+### CI/CD, smoke tests e rate limiting (Etapa 6)
+
+**GitHub Actions** (`.github/workflows/ci.yml`):
+
+| Job | O que valida |
+|-----|----------------|
+| `backend-tests` | pytest em todos os microserviços + cobertura ≥ 70% em `kapitour_shared` |
+| `frontend-tests` | Jest (app React Native) |
+| `docker-build` | build das imagens monolito, microserviços e worker |
+| `smoke-api` | sobe Redis + microserviços + gateway e executa rotas públicas |
+
+Smoke local (com stack Docker rodando na porta 8080):
+
+```bash
+python backend/scripts/smoke_api.py --base-url http://localhost:8080
+```
+
+**Rate limiting** (Redis) em rotas sensíveis:
+
+| Rota | Variável | Padrão |
+|------|----------|--------|
+| `POST /auth/login` | `RATE_LIMIT_LOGIN` | 5/min |
+| `POST /auth/register` | `RATE_LIMIT_REGISTER` | 3/min |
+| `POST /auth/forgot-password` | `RATE_LIMIT_FORGOT_PASSWORD` | 3/min |
+| `POST /auth/refresh` | `RATE_LIMIT_REFRESH` | 10/min |
+| `POST /kapipass/checkin` | `RATE_LIMIT_CHECKIN` | 30/min |
+| `POST /cupons/resgatar` | `RATE_LIMIT_RESGATE_CUPOM` | 10/min |
+
+Demais rotas usam `RATE_LIMIT_DEFAULT` (100/min por IP e por usuário autenticado).
+
+**Observabilidade:** cada serviço expõe `GET /api/health`, `GET /api/status` e `GET /api/metrics` (Prometheus).
+
 ---
 
 ## Banco de dados

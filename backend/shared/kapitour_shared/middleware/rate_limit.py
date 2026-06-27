@@ -1,7 +1,7 @@
 import logging
 from collections.abc import Callable
 
-from fastapi import HTTPException, Request
+from fastapi import Request
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import JSONResponse, Response
 
@@ -10,6 +10,16 @@ from kapitour_shared.cache.redis_client import obter_cliente_redis
 from kapitour_shared.configuracao import configuracoes
 
 logger = logging.getLogger("kapitour.ratelimit")
+
+# Sufixo do path → chave de limite em configuracoes
+ROTAS_LIMITADAS: dict[str, str] = {
+    "/api/auth/login": "login",
+    "/api/auth/register": "register",
+    "/api/auth/forgot-password": "forgot_password",
+    "/api/auth/refresh": "refresh",
+    "/api/kapipass/checkin": "checkin",
+    "/api/cupons/resgatar": "resgate_cupom",
+}
 
 
 def _parse_limite(limite: str) -> tuple[int, int]:
@@ -21,13 +31,20 @@ def _parse_limite(limite: str) -> tuple[int, int]:
     return max_req, janela
 
 
+def resolver_limite(path: str) -> str:
+    """Retorna string de limite (ex.: '5/minute') para o path da requisição."""
+    for rota, tipo in ROTAS_LIMITADAS.items():
+        if path == rota or path.endswith(rota):
+            return getattr(
+                configuracoes,
+                f"rate_limit_{tipo}",
+                configuracoes.rate_limit_default,
+            )
+    return configuracoes.rate_limit_default
+
+
 class MiddlewareRateLimit(BaseHTTPMiddleware):
     """Rate limiting por IP e por usuário autenticado via Redis."""
-
-    ROTAS_ESPECIAIS = {
-        "/api/auth/login": "login",
-        "/api/auth/register": "register",
-    }
 
     async def dispatch(self, request: Request, call_next: Callable) -> Response:
         if request.method == "OPTIONS":
@@ -38,17 +55,7 @@ class MiddlewareRateLimit(BaseHTTPMiddleware):
             return await call_next(request)
 
         path = request.url.path
-        limite_str = configuracoes.rate_limit_default
-        for rota, tipo in self.ROTAS_ESPECIAIS.items():
-            if path.endswith(rota) or path == rota:
-                limite_str = (
-                    configuracoes.rate_limit_login
-                    if tipo == "login"
-                    else configuracoes.rate_limit_register
-                )
-                break
-
-        max_req, janela = _parse_limite(limite_str)
+        max_req, janela = _parse_limite(resolver_limite(path))
         ip = request.client.host if request.client else "unknown"
         chaves = [f"rl:ip:{ip}:{path}"]
 
