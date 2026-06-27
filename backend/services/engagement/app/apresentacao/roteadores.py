@@ -1,6 +1,12 @@
-from fastapi import APIRouter, Depends, HTTPException
+from typing import Annotated
+
+from typing import Annotated
+
+from fastapi import APIRouter, Depends, Header, HTTPException
 
 from app.apresentacao.dependencias import (
+    obter_cache_engagement,
+    obter_repositorio_avaliacao,
     obter_repositorio_favorito,
     obter_servico_avaliacao,
     obter_servico_favoritos,
@@ -13,51 +19,78 @@ from app.apresentacao.esquemas import (
     FavoritoResponse,
     PontoAvaliacaoCreate,
 )
-from app.infraestrutura.persistencia.repositorios import RepositorioFavorito
 from app.dominio.casos_de_uso.servicos import ServicoAvaliacao, ServicoFavoritos
+from app.infraestrutura.persistencia.repositorios import RepositorioAvaliacao, RepositorioFavorito
+from kapitour_shared.autenticacao import (
+    UsuarioToken,
+    obter_usuario_obrigatorio_do_token,
+    obter_usuario_opcional_do_token,
+    resolver_usuario_escopo,
+)
+from kapitour_shared.cache.cache_service import ServicoCache
 
 roteador = APIRouter()
 
 
-@roteador.get("/health")
-def health():
-    return {"status": "ok", "service": "engagement"}
+def _invalidar_favoritos(cache: ServicoCache, usuario_id: int) -> None:
+    cache.invalidar(f"favoritos:{usuario_id}")
 
 
-@roteador.get("/favoritos")
+def _invalidar_avaliacoes_ponto(cache: ServicoCache, ponto_id: int) -> None:
+    cache.invalidar(f"avaliacoes:ponto:{ponto_id}")
+    cache.invalidar(f"avaliacoes:media:{ponto_id}")
+
+
+@roteador.get("/favoritos", tags=["engajamento"])
 def list_favoritos(
     usuario_id: int,
+    usuario: UsuarioToken = Depends(obter_usuario_obrigatorio_do_token),
     servico: ServicoFavoritos = Depends(obter_servico_favoritos),
 ):
-    return servico.listar_com_pontos(usuario_id)
+    uid = resolver_usuario_escopo(usuario, usuario_id)
+    return servico.listar_com_pontos(uid)
 
 
-@roteador.post("/favoritos", response_model=FavoritoResponse)
+@roteador.post("/favoritos", response_model=FavoritoResponse, tags=["engajamento"])
 def create_favorito(
     payload: FavoritoCreate,
+    usuario: UsuarioToken = Depends(obter_usuario_obrigatorio_do_token),
     repositorio: RepositorioFavorito = Depends(obter_repositorio_favorito),
+    cache: ServicoCache = Depends(obter_cache_engagement),
 ):
-    return repositorio.criar(payload.usuario_id, payload.ponto_id)
+    uid = resolver_usuario_escopo(usuario, payload.usuario_id)
+    resultado = repositorio.criar(uid, payload.ponto_id)
+    _invalidar_favoritos(cache, uid)
+    return resultado
 
 
-@roteador.delete("/favoritos")
+@roteador.delete("/favoritos", tags=["engajamento"])
 def delete_favorito(
     usuario_id: int,
     ponto_id: int,
+    usuario: UsuarioToken = Depends(obter_usuario_obrigatorio_do_token),
     repositorio: RepositorioFavorito = Depends(obter_repositorio_favorito),
+    cache: ServicoCache = Depends(obter_cache_engagement),
 ):
-    ok = repositorio.excluir(usuario_id, ponto_id)
+    uid = resolver_usuario_escopo(usuario, usuario_id)
+    ok = repositorio.excluir(uid, ponto_id)
     if not ok:
         raise HTTPException(status_code=404, detail="Favorito não encontrado")
+    _invalidar_favoritos(cache, uid)
     return {"success": True}
 
 
-@roteador.get("/avaliacoes")
+@roteador.get("/avaliacoes", tags=["engajamento"])
 def list_avaliacoes(
     ponto_id: int | None = None,
     usuario_id: int | None = None,
+    usuario: UsuarioToken | None = Depends(obter_usuario_opcional_do_token),
     servico: ServicoAvaliacao = Depends(obter_servico_avaliacao),
 ):
+    if usuario_id is not None:
+        if not usuario:
+            raise HTTPException(status_code=401, detail="Não autenticado")
+        usuario_id = resolver_usuario_escopo(usuario, usuario_id)
     resultado = servico.listar(ponto_id=ponto_id, usuario_id=usuario_id)
     if usuario_id and ponto_id:
         return resultado
@@ -66,39 +99,57 @@ def list_avaliacoes(
     return []
 
 
-@roteador.post("/avaliacoes", response_model=AvaliacaoResponse)
+@roteador.post("/avaliacoes", response_model=AvaliacaoResponse, tags=["engajamento"])
 def create_avaliacao(
     payload: AvaliacaoCreate,
+    usuario: UsuarioToken = Depends(obter_usuario_obrigatorio_do_token),
     servico: ServicoAvaliacao = Depends(obter_servico_avaliacao),
+    cache: ServicoCache = Depends(obter_cache_engagement),
 ):
-    return servico.criar_ou_atualizar(
-        payload.usuario_id, payload.ponto_id, payload.nota, payload.comentario
-    )
-
-
-@roteador.put("/avaliacoes/{avaliacao_id}", response_model=AvaliacaoResponse)
-def update_avaliacao(
-    avaliacao_id: int,
-    payload: AvaliacaoUpdate,
-    servico: ServicoAvaliacao = Depends(obter_servico_avaliacao),
-):
-    item = servico.atualizar_por_id(avaliacao_id, payload.nota, payload.comentario)
-    if not item:
-        raise HTTPException(status_code=404, detail="Avaliação não encontrada")
+    uid = resolver_usuario_escopo(usuario, payload.usuario_id)
+    item = servico.criar_ou_atualizar(uid, payload.ponto_id, payload.nota, payload.comentario)
+    _invalidar_avaliacoes_ponto(cache, payload.ponto_id)
     return item
 
 
-@roteador.post("/ponto-avaliacoes")
+@roteador.put("/avaliacoes/{avaliacao_id}", response_model=AvaliacaoResponse, tags=["engajamento"])
+def update_avaliacao(
+    avaliacao_id: int,
+    payload: AvaliacaoUpdate,
+    usuario: UsuarioToken = Depends(obter_usuario_obrigatorio_do_token),
+    servico: ServicoAvaliacao = Depends(obter_servico_avaliacao),
+    repositorio: RepositorioAvaliacao = Depends(obter_repositorio_avaliacao),
+    cache: ServicoCache = Depends(obter_cache_engagement),
+):
+    existente = repositorio.buscar_por_id(avaliacao_id)
+    if not existente:
+        raise HTTPException(status_code=404, detail="Avaliação não encontrada")
+    if existente.usuario_id != usuario.id:
+        raise HTTPException(status_code=403, detail="Não autorizado a alterar esta avaliação")
+    item = servico.atualizar_por_id(avaliacao_id, payload.nota, payload.comentario)
+    _invalidar_avaliacoes_ponto(cache, existente.ponto_id)
+    return item
+
+
+@roteador.post("/ponto-avaliacoes", tags=["engajamento"])
 def create_ponto_avaliacao(
     payload: PontoAvaliacaoCreate,
+    authorization: Annotated[str | None, Header()] = None,
     servico: ServicoAvaliacao = Depends(obter_servico_avaliacao),
+    cache: ServicoCache = Depends(obter_cache_engagement),
 ):
-    return servico.criar_ponto_avaliacao(
-        payload.ponto_id, payload.usuario_id, payload.nota, payload.comentario
+    usuario_id = payload.usuario_id
+    if usuario_id is not None:
+        usuario = obter_usuario_obrigatorio_do_token(authorization)
+        usuario_id = resolver_usuario_escopo(usuario, usuario_id)
+    resultado = servico.criar_ponto_avaliacao(
+        payload.ponto_id, usuario_id, payload.nota, payload.comentario
     )
+    _invalidar_avaliacoes_ponto(cache, payload.ponto_id)
+    return resultado
 
 
-@roteador.get("/ponto-avaliacoes/media")
+@roteador.get("/ponto-avaliacoes/media", tags=["engajamento"])
 def media_ponto_avaliacoes(
     ponto_id: int,
     servico: ServicoAvaliacao = Depends(obter_servico_avaliacao),

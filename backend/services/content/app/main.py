@@ -1,16 +1,14 @@
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
-
 from app.migracoes import executar_migracoes, semear_dados_iniciais
 from app.roteadores import roteador
 from kapitour_shared.banco_dados import FabricaSessao
 from kapitour_shared.configuracao import configuracoes
+from kapitour_shared.core.app_factory import criar_aplicacao
 
 
 @asynccontextmanager
-async def lifespan(_: FastAPI):
+async def lifespan(_):
     executar_migracoes()
     sessao = FabricaSessao()
     try:
@@ -20,14 +18,12 @@ async def lifespan(_: FastAPI):
     yield
 
 
-app = FastAPI(title="Kapitour Content Service", version="1.0.0", lifespan=lifespan)
+configuracoes.service_name = "content"
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=configuracoes.cors_origins.split(",") if configuracoes.cors_origins != "*" else ["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+app = criar_aplicacao(
+    titulo="Kapitour Content Service",
+    versao="2.0.0",
+    lifespan=lifespan,
+    descricao="Categorias, pontos turísticos e rotas com cache Redis.",
 )
-
 app.include_router(roteador, prefix="/api")

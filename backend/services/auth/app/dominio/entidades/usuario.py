@@ -15,3 +15,4 @@ class Usuario:
     sexo: str | None = None
     data_nascimento: date | None = None
     data_criacao: datetime | None = None
+    email_verificado: bool = False

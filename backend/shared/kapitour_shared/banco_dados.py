@@ -2,6 +2,7 @@ from pathlib import Path
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import DeclarativeBase, sessionmaker
+from sqlalchemy.pool import QueuePool
 
 from kapitour_shared.configuracao import configuracoes
 
@@ -17,12 +18,21 @@ def _resolver_caminho_sqlite(url: str) -> str:
     return f"sqlite:///{caminho.as_posix()}"
 
 
-URL_BANCO = _resolver_caminho_sqlite(configuracoes.database_url)
-argumentos_conexao = (
-    {"check_same_thread": False} if URL_BANCO.startswith("sqlite") else {}
-)
+def _criar_motor(url: str):
+    url = _resolver_caminho_sqlite(url)
+    if url.startswith("sqlite"):
+        return create_engine(url, connect_args={"check_same_thread": False})
+    return create_engine(
+        url,
+        poolclass=QueuePool,
+        pool_size=configuracoes.db_pool_size,
+        max_overflow=configuracoes.db_max_overflow,
+        pool_pre_ping=True,
+    )
 
-motor_banco = create_engine(URL_BANCO, connect_args=argumentos_conexao)
+
+URL_BANCO = _resolver_caminho_sqlite(configuracoes.database_url)
+motor_banco = _criar_motor(configuracoes.database_url)
 FabricaSessao = sessionmaker(autocommit=False, autoflush=False, bind=motor_banco)
 
 

@@ -28,6 +28,7 @@ class TestCasoRegistrarUsuario:
 
         # Então: retorna token e dados do usuário
         assert resultado.token == "token-auth-1-1"
+        assert resultado.refresh_token == "refresh-auth-1-1"
         assert resultado.usuario.email == "luana@teste.com"
 
     def test_executar_rejeita_email_duplicado(self):

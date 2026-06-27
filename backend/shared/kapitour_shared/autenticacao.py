@@ -1,46 +1,23 @@
 from dataclasses import dataclass
-from datetime import datetime, timedelta
 from typing import Annotated
 
-import bcrypt
-from fastapi import Header, HTTPException
-from jose import JWTError, jwt
+from fastapi import Depends, Header, HTTPException
 
 from kapitour_shared.configuracao import configuracoes
+from kapitour_shared.security.jwt_service import servico_jwt
+from kapitour_shared.security.rbac import Role, possui_permissao, role_de_tipo_usuario
 
 
 @dataclass(frozen=True)
 class UsuarioToken:
     id: int
     auth_id: str
-
-
-def gerar_hash_senha(senha: str) -> str:
-    return bcrypt.hashpw(senha.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
-
-
-def senha_confere(senha_informada: str, senha_hash: str) -> bool:
-    return bcrypt.checkpw(
-        senha_informada.encode("utf-8"),
-        senha_hash.encode("utf-8"),
-    )
-
-
-def criar_token_acesso(auth_id: str, usuario_id: int) -> str:
-    expira_em = datetime.utcnow() + timedelta(minutes=configuracoes.jwt_expire_minutes)
-    payload = {"sub": auth_id, "user_id": usuario_id, "exp": expira_em}
-    return jwt.encode(payload, configuracoes.jwt_secret, algorithm=configuracoes.jwt_algorithm)
+    role: Role = Role.TURISTA
+    jti: str | None = None
 
 
 def decodificar_token(token: str) -> dict | None:
-    try:
-        return jwt.decode(
-            token,
-            configuracoes.jwt_secret,
-            algorithms=[configuracoes.jwt_algorithm],
-        )
-    except JWTError:
-        return None
+    return servico_jwt.decodificar(token)
 
 
 def _extrair_token_do_cabecalho(authorization: str | None) -> str | None:
@@ -65,7 +42,15 @@ def obter_usuario_opcional_do_token(
     if not auth_id or usuario_id is None:
         return None
 
-    return UsuarioToken(id=int(usuario_id), auth_id=str(auth_id))
+    role_str = payload.get("role")
+    role = Role(role_str) if role_str else Role.TURISTA
+
+    return UsuarioToken(
+        id=int(usuario_id),
+        auth_id=str(auth_id),
+        role=role,
+        jti=payload.get("jti"),
+    )
 
 
 def obter_usuario_obrigatorio_do_token(
@@ -77,8 +62,69 @@ def obter_usuario_obrigatorio_do_token(
     return usuario
 
 
+def exigir_permissao(permissao: str):
+    """Dependency factory para RBAC."""
+
+    def _verificar(
+        usuario: UsuarioToken = Depends(obter_usuario_obrigatorio_do_token),
+    ) -> UsuarioToken:
+        if not possui_permissao(usuario.role, permissao):
+            raise HTTPException(status_code=403, detail="Permissão negada")
+        return usuario
+
+    return _verificar
+
+
 def validar_chave_interna(
     x_internal_key: Annotated[str | None, Header()] = None,
 ) -> None:
     if x_internal_key != configuracoes.internal_service_key:
         raise HTTPException(status_code=403, detail="Acesso interno negado")
+
+
+def resolver_usuario_escopo(usuario: UsuarioToken, usuario_id: int | None = None) -> int:
+    """Deriva ou valida usuario_id a partir do JWT (compatível com query/body legado)."""
+    if usuario_id is None:
+        return usuario.id
+    if usuario_id != usuario.id:
+        raise HTTPException(status_code=403, detail="usuario_id não corresponde ao token")
+    return usuario_id
+
+
+def validar_consulta_cupom_usuario(usuario: UsuarioToken, usuario_id: int) -> None:
+    """Empresa pode consultar cupons de turistas; demais roles só o próprio id."""
+    if usuario.role == Role.EMPRESA:
+        return
+    if usuario_id != usuario.id:
+        raise HTTPException(status_code=403, detail="Acesso negado ao usuario_id informado")
+
+
+def validar_resgate_cupom(usuario: UsuarioToken, usuario_id: int, parceiro_id: int) -> None:
+    """Empresa resgata para turista quando parceiro_id coincide com o token."""
+    if usuario.role == Role.EMPRESA:
+        if parceiro_id != usuario.id:
+            raise HTTPException(status_code=403, detail="parceiro_id não corresponde ao token")
+        return
+    if usuario_id != usuario.id:
+        raise HTTPException(status_code=403, detail="usuario_id não corresponde ao token")
+
+
+# Reexportações de compatibilidade
+from kapitour_shared.security.passwords import gerar_hash_senha, senha_confere  # noqa: E402
+from kapitour_shared.security.jwt_service import criar_token_acesso  # noqa: E402
+
+__all__ = [
+    "UsuarioToken",
+    "criar_token_acesso",
+    "decodificar_token",
+    "gerar_hash_senha",
+    "senha_confere",
+    "obter_usuario_opcional_do_token",
+    "obter_usuario_obrigatorio_do_token",
+    "exigir_permissao",
+    "validar_chave_interna",
+    "resolver_usuario_escopo",
+    "validar_consulta_cupom_usuario",
+    "validar_resgate_cupom",
+    "role_de_tipo_usuario",
+]

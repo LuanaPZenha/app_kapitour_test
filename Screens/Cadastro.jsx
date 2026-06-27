@@ -11,7 +11,6 @@ import {
   Platform,
   ScrollView,
   Keyboard,
-  TouchableWithoutFeedback,
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
@@ -19,6 +18,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { gradients } from "../theme/gradients";
 import { authApi, dbApi } from "./../lib/api";
 import Button from "../components/Button";
+import DismissKeyboardView from "../components/DismissKeyboardView";
 import { useAppAlert } from "../components/AppAlert";
 import { colors } from "../theme/colors";
 
@@ -222,7 +222,7 @@ export default function Cadastro() {
           <Ionicons name="arrow-back" size={28} color="white" />
         </TouchableOpacity>
 
-        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+        <DismissKeyboardView>
           <ScrollView
             contentContainerStyle={[styles.container, { paddingTop: 55 }]}
             keyboardShouldPersistTaps="handled"
@@ -341,7 +341,7 @@ export default function Cadastro() {
             </Animated.View>
           )}
           </ScrollView>
-        </TouchableWithoutFeedback>
+        </DismissKeyboardView>
       </LinearGradient>
     </KeyboardAvoidingView>
   );

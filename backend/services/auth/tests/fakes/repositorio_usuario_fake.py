@@ -1,4 +1,4 @@
-from datetime import date, datetime
+from datetime import datetime
 
 from app.dominio.entidades.usuario import Usuario
 
@@ -61,5 +61,5 @@ class RepositorioUsuarioFake:
 
 
 class GeradorTokenFake:
-    def __call__(self, auth_id: str, usuario_id: int) -> str:
-        return f"token-{auth_id}-{usuario_id}"
+    def gerar(self, auth_id: str, usuario_id: int, tipo_usuario_id: int = 3) -> tuple[str, str]:
+        return f"token-{auth_id}-{usuario_id}", f"refresh-{auth_id}-{usuario_id}"

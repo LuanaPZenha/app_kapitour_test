@@ -3,8 +3,12 @@
 from fastapi import Depends
 from sqlalchemy.orm import Session
 
+from app.infraestrutura.cache.servicos_cache import (
+    ServicoCategoriasComCache,
+    ServicoPontosComCache,
+    ServicoRotasComCache,
+)
 from app.infraestrutura.persistencia.repositorios import RepositorioCategoria, RepositorioPonto, RepositorioRota
-from app.dominio.casos_de_uso.servicos import ServicoCategorias, ServicoPontos, ServicoRotas
 from kapitour_shared.banco_dados import obter_sessao_banco
 
 
@@ -22,18 +26,18 @@ def obter_repositorio_rota(sessao: Session = Depends(obter_sessao_banco)) -> Rep
 
 def obter_servico_categorias(
     repositorio: RepositorioCategoria = Depends(obter_repositorio_categoria),
-) -> ServicoCategorias:
-    return ServicoCategorias(repositorio)
+) -> ServicoCategoriasComCache:
+    return ServicoCategoriasComCache(repositorio)
 
 
 def obter_servico_pontos(
     repositorio: RepositorioPonto = Depends(obter_repositorio_ponto),
-) -> ServicoPontos:
-    return ServicoPontos(repositorio)
+) -> ServicoPontosComCache:
+    return ServicoPontosComCache(repositorio)
 
 
 def obter_servico_rotas(
     repositorio_rota: RepositorioRota = Depends(obter_repositorio_rota),
     repositorio_ponto: RepositorioPonto = Depends(obter_repositorio_ponto),
-) -> ServicoRotas:
-    return ServicoRotas(repositorio_rota, repositorio_ponto)
+) -> ServicoRotasComCache:
+    return ServicoRotasComCache(repositorio_rota, repositorio_ponto)

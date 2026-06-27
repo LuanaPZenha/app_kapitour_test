@@ -3,8 +3,6 @@ import {
   View,
   Text,
   StyleSheet,
-  TouchableWithoutFeedback,
-  Keyboard,
   Dimensions,
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
@@ -18,6 +16,7 @@ import ContainerImg from "../components/ContainerImg";
 import Button from "../components/Button";
 import TextField from "../components/TextField";
 import PressableScale from "../components/PressableScale";
+import DismissKeyboardView from "../components/DismissKeyboardView";
 import { useAppAlert } from "../components/AppAlert";
 
 const { width: screenWidth } = Dimensions.get("window");
@@ -71,7 +70,7 @@ export default function LoginScreen() {
   };
 
   return (
-    <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+    <DismissKeyboardView>
       <LinearGradient {...gradients.appBg} style={styles.container}>
         <View style={styles.logoSection}>
           <ContainerImg compact showTagline={false} />
@@ -120,7 +119,7 @@ export default function LoginScreen() {
           </PressableScale>
         </View>
       </LinearGradient>
-    </TouchableWithoutFeedback>
+    </DismissKeyboardView>
   );
 }
 

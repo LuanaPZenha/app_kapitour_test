@@ -12,7 +12,12 @@ COPY backend/requirements.txt ./requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY backend/shared ./shared
-COPY backend/services/${SERVICE}/app ./app
+COPY backend/services/${SERVICE} ./service_src
+RUN cp -r ./service_src/app ./app && \
+    if [ -f ./service_src/alembic.ini ]; then \
+      cp ./service_src/alembic.ini . && cp -r ./service_src/alembic ./alembic; \
+    fi && \
+    rm -rf ./service_src
 COPY backend/scripts/ensure_microservice_data.py ./scripts/ensure_microservice_data.py
 COPY backend/scripts/split_database.py ./scripts/split_database.py
 

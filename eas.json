@@ -19,7 +19,7 @@
         "buildType": "apk"
       },
       "env": {
-        "EXPO_PUBLIC_API_URL": "http://192.168.1.14:8000/api",
+        "EXPO_PUBLIC_API_URL": "http://localhost:8080/api",
         "EXPO_PUBLIC_OPENWEATHER_API_KEY": "35e2c8a534c672f02381b51ccc11c161",
         "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "987853857968-8gorgoregm4h6toveodo1nlergfjjkcs.apps.googleusercontent.com"
       }
@@ -31,7 +31,7 @@
         "buildType": "apk"
       },
       "env": {
-        "EXPO_PUBLIC_API_URL": "http://192.168.1.14:8000/api",
+        "EXPO_PUBLIC_API_URL": "http://localhost:8080/api",
         "EXPO_PUBLIC_OPENWEATHER_API_KEY": "35e2c8a534c672f02381b51ccc11c161",
         "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "987853857968-8gorgoregm4h6toveodo1nlergfjjkcs.apps.googleusercontent.com"
       }

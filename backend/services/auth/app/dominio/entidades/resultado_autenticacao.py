@@ -7,3 +7,4 @@ from app.dominio.entidades.usuario import Usuario
 class ResultadoAutenticacao:
     token: str
     usuario: Usuario
+    refresh_token: str | None = None

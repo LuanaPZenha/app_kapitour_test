@@ -1,5 +1,5 @@
 import React from "react";
-import { View, TextInput, StyleSheet } from "react-native";
+import { View, TextInput, StyleSheet, Platform } from "react-native";
 import IconButton from "./IconButton";
 import { colors } from "../theme/colors";
 import { layout, radius, spacing } from "../theme/spacing";
@@ -33,6 +33,11 @@ export default function TextField({
         editable={editable}
         accessibilityLabel={accessibilityLabel || placeholder}
         textContentType={secureTextEntry ? "password" : "emailAddress"}
+        {...(Platform.OS === "web"
+          ? {
+              onMouseDown: (event) => event.stopPropagation(),
+            }
+          : null)}
       />
       {showPasswordToggle ? (
         <IconButton

@@ -99,31 +99,41 @@ export default function PontosTuristicos() {
   const [selectedPonto, setSelectedPonto] = useState(null);
 
   const loadData = useCallback(async () => {
-    const [catRes, pontosRes] = await Promise.all([
-      dbApi.listCategorias(),
-      dbApi.listPontos(),
-    ]);
+    try {
+      const [catRes, pontosRes] = await Promise.all([
+        dbApi.listCategorias(),
+        dbApi.listPontos(),
+      ]);
 
-    if (!catRes.error && catRes.data) {
-      setCategorias(catRes.data);
-      await AsyncStorage.setItem(
-        "cache:categorias",
-        JSON.stringify({ ts: Date.now(), data: catRes.data })
-      );
-    }
-
-    if (!pontosRes.error && pontosRes.data) {
-      setPontos(pontosRes.data);
-      await AsyncStorage.setItem(
-        "cache:pontos:all",
-        JSON.stringify({ ts: Date.now(), data: pontosRes.data })
-      );
-
-      const ids = pontosRes.data.map((p) => p.id);
-      const relRes = await dbApi.listPontoCategoriaByPontos(ids);
-      if (!relRes.error) {
-        setPontoCategorias(relRes.data || []);
+      if (!catRes.error && Array.isArray(catRes.data)) {
+        setCategorias(catRes.data);
+        await AsyncStorage.setItem(
+          "cache:categorias",
+          JSON.stringify({ ts: Date.now(), data: catRes.data })
+        );
       }
+
+      const pontosLista = Array.isArray(pontosRes.data)
+        ? pontosRes.data
+        : pontosRes.data?.itens || [];
+
+      if (!pontosRes.error && pontosLista.length) {
+        setPontos(pontosLista);
+        await AsyncStorage.setItem(
+          "cache:pontos:all",
+          JSON.stringify({ ts: Date.now(), data: pontosLista })
+        );
+
+        const ids = pontosLista.map((p) => p.id).filter(Boolean);
+        if (ids.length) {
+          const relRes = await dbApi.listPontoCategoriaByPontos(ids);
+          if (!relRes.error) {
+            setPontoCategorias(relRes.data || []);
+          }
+        }
+      }
+    } catch (err) {
+      console.error("Erro ao carregar pontos turísticos:", err);
     }
   }, []);
 

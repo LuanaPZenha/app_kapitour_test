@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 
 from app.apresentacao.dependencias import (
+    obter_cache_kapipass,
     obter_servico_colecao,
     obter_servico_diario,
     obter_servico_eco,
@@ -19,17 +20,18 @@ from app.aplicacao.servicos import (
     ServicoRanking,
     ServicoTesouro,
 )
-from kapitour_shared.autenticacao import UsuarioToken, obter_usuario_obrigatorio_do_token
+from app.infraestrutura.cache.servicos_cache import invalidar_cache_usuario
+from kapitour_shared.autenticacao import (
+    UsuarioToken,
+    obter_usuario_obrigatorio_do_token,
+    resolver_usuario_escopo,
+)
+from kapitour_shared.cache.cache_service import ServicoCache
 
 roteador = APIRouter()
 
 
-@roteador.get("/health")
-def health():
-    return {"status": "ok", "service": "kapipass"}
-
-
-@roteador.get("/kapipass/me")
+@roteador.get("/kapipass/me", tags=["kapipass"])
 def kapipass_me(
     usuario: UsuarioToken = Depends(obter_usuario_obrigatorio_do_token),
     servico: ServicoGamificacao = Depends(obter_servico_gamificacao),
@@ -40,144 +42,175 @@ def kapipass_me(
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
-@roteador.get("/kapipass/niveis")
+@roteador.get("/kapipass/niveis", tags=["kapipass"])
 def kapipass_niveis(servico: ServicoGamificacao = Depends(obter_servico_gamificacao)):
     return servico.listar_niveis()
 
 
-@roteador.post("/kapipass/checkin")
+@roteador.post("/kapipass/checkin", tags=["kapipass"])
 def kapipass_checkin(
     payload: CheckinRequest,
     usuario: UsuarioToken = Depends(obter_usuario_obrigatorio_do_token),
     servico: ServicoGamificacao = Depends(obter_servico_gamificacao),
+    cache: ServicoCache = Depends(obter_cache_kapipass),
 ):
     try:
-        return servico.processar_checkin(
+        resultado = servico.processar_checkin(
             usuario_id=usuario.id,
             ponto_id=payload.ponto_turistico_id,
             latitude=payload.latitude,
             longitude=payload.longitude,
         )
+        invalidar_cache_usuario(cache, usuario.id)
+        return resultado
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
-@roteador.get("/kapipass/checkins")
+@roteador.get("/kapipass/checkins", tags=["kapipass"])
 def kapipass_checkins(
-    usuario_id: int,
+    usuario_id: int | None = None,
+    usuario: UsuarioToken = Depends(obter_usuario_obrigatorio_do_token),
     servico: ServicoGamificacao = Depends(obter_servico_gamificacao),
 ):
-    return servico.listar_checkins(usuario_id)
+    uid = resolver_usuario_escopo(usuario, usuario_id)
+    return servico.listar_checkins(uid)
 
 
-@roteador.get("/kapipass/carimbos")
+@roteador.get("/kapipass/carimbos", tags=["kapipass"])
 def kapipass_carimbos(
-    usuario_id: int,
+    usuario_id: int | None = None,
+    usuario: UsuarioToken = Depends(obter_usuario_obrigatorio_do_token),
     servico: ServicoGamificacao = Depends(obter_servico_gamificacao),
 ):
-    return servico.listar_carimbos(usuario_id)
+    uid = resolver_usuario_escopo(usuario, usuario_id)
+    return servico.listar_carimbos(uid)
 
 
-@roteador.get("/kapipass/conquistas")
+@roteador.get("/kapipass/conquistas", tags=["kapipass"])
 def kapipass_conquistas(
-    usuario_id: int,
+    usuario_id: int | None = None,
+    usuario: UsuarioToken = Depends(obter_usuario_obrigatorio_do_token),
     servico: ServicoGamificacao = Depends(obter_servico_gamificacao),
 ):
-    return servico.listar_conquistas(usuario_id)
+    uid = resolver_usuario_escopo(usuario, usuario_id)
+    return servico.listar_conquistas(uid)
 
 
-@roteador.get("/kapipass/colecoes")
+@roteador.get("/kapipass/colecoes", tags=["kapipass"])
 def kapipass_colecoes(
-    usuario_id: int,
+    usuario_id: int | None = None,
+    usuario: UsuarioToken = Depends(obter_usuario_obrigatorio_do_token),
     servico: ServicoColecao = Depends(obter_servico_colecao),
 ):
-    return servico.listar_colecoes(usuario_id)
+    uid = resolver_usuario_escopo(usuario, usuario_id)
+    return servico.listar_colecoes(uid)
 
 
-@roteador.get("/kapipass/missoes")
+@roteador.get("/kapipass/missoes", tags=["kapipass"])
 def kapipass_missoes(
-    usuario_id: int,
+    usuario_id: int | None = None,
+    usuario: UsuarioToken = Depends(obter_usuario_obrigatorio_do_token),
     servico: ServicoMissao = Depends(obter_servico_missao),
 ):
-    return servico.listar_missoes(usuario_id)
+    uid = resolver_usuario_escopo(usuario, usuario_id)
+    return servico.listar_missoes(uid)
 
 
-@roteador.post("/kapipass/missoes/{missao_id}/aceitar")
+@roteador.post("/kapipass/missoes/{missao_id}/aceitar", tags=["kapipass"])
 def kapipass_aceitar_missao(
     missao_id: int,
     usuario: UsuarioToken = Depends(obter_usuario_obrigatorio_do_token),
     servico: ServicoMissao = Depends(obter_servico_missao),
+    cache: ServicoCache = Depends(obter_cache_kapipass),
 ):
     try:
-        return servico.aceitar(usuario.id, missao_id)
+        resultado = servico.aceitar(usuario.id, missao_id)
+        invalidar_cache_usuario(cache, usuario.id)
+        return resultado
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
-@roteador.get("/kapipass/eco")
+@roteador.get("/kapipass/eco", tags=["kapipass"])
 def kapipass_eco(
-    usuario_id: int,
+    usuario_id: int | None = None,
+    usuario: UsuarioToken = Depends(obter_usuario_obrigatorio_do_token),
     servico: ServicoEco = Depends(obter_servico_eco),
 ):
-    return servico.listar_atividades(usuario_id)
+    uid = resolver_usuario_escopo(usuario, usuario_id)
+    return servico.listar_atividades(uid)
 
 
-@roteador.post("/kapipass/eco/registrar")
+@roteador.post("/kapipass/eco/registrar", tags=["kapipass"])
 def kapipass_eco_registrar(
     payload: EcoRegistrarRequest,
     usuario: UsuarioToken = Depends(obter_usuario_obrigatorio_do_token),
     servico: ServicoEco = Depends(obter_servico_eco),
+    cache: ServicoCache = Depends(obter_cache_kapipass),
 ):
     try:
-        return servico.registrar(usuario.id, payload.eco_atividade_id)
+        resultado = servico.registrar(usuario.id, payload.eco_atividade_id)
+        invalidar_cache_usuario(cache, usuario.id)
+        return resultado
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
-@roteador.get("/kapipass/diario")
+@roteador.get("/kapipass/diario", tags=["kapipass"])
 def kapipass_diario(
-    usuario_id: int,
+    usuario_id: int | None = None,
+    usuario: UsuarioToken = Depends(obter_usuario_obrigatorio_do_token),
     servico: ServicoDiario = Depends(obter_servico_diario),
 ):
-    return servico.listar_entradas(usuario_id)
+    uid = resolver_usuario_escopo(usuario, usuario_id)
+    return servico.listar_entradas(uid)
 
 
-@roteador.post("/kapipass/diario")
+@roteador.post("/kapipass/diario", tags=["kapipass"])
 def kapipass_diario_criar(
     payload: DiarioCreate,
     usuario: UsuarioToken = Depends(obter_usuario_obrigatorio_do_token),
     servico: ServicoDiario = Depends(obter_servico_diario),
+    cache: ServicoCache = Depends(obter_cache_kapipass),
 ):
-    return servico.criar(
+    resultado = servico.criar(
         usuario_id=usuario.id,
         ponto_turistico_id=payload.ponto_turistico_id,
         checkin_id=payload.checkin_id,
         comentario=payload.comentario,
         foto=payload.foto,
     )
+    invalidar_cache_usuario(cache, usuario.id)
+    return resultado
 
 
-@roteador.get("/kapipass/tesouros")
+@roteador.get("/kapipass/tesouros", tags=["kapipass"])
 def kapipass_tesouros(
-    usuario_id: int,
+    usuario_id: int | None = None,
+    usuario: UsuarioToken = Depends(obter_usuario_obrigatorio_do_token),
     servico: ServicoTesouro = Depends(obter_servico_tesouro),
 ):
-    return servico.listar_tesouros(usuario_id)
+    uid = resolver_usuario_escopo(usuario, usuario_id)
+    return servico.listar_tesouros(uid)
 
 
-@roteador.post("/kapipass/tesouros/{tesouro_id}/concluir")
+@roteador.post("/kapipass/tesouros/{tesouro_id}/concluir", tags=["kapipass"])
 def kapipass_concluir_tesouro(
     tesouro_id: int,
     usuario: UsuarioToken = Depends(obter_usuario_obrigatorio_do_token),
     servico: ServicoTesouro = Depends(obter_servico_tesouro),
+    cache: ServicoCache = Depends(obter_cache_kapipass),
 ):
     try:
-        return servico.concluir(usuario.id, tesouro_id)
+        resultado = servico.concluir(usuario.id, tesouro_id)
+        invalidar_cache_usuario(cache, usuario.id)
+        return resultado
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
-@roteador.get("/kapipass/rankings")
+@roteador.get("/kapipass/rankings", tags=["kapipass"])
 def kapipass_rankings(
     categoria: str = Query(default="exploradores"),
     page: int = Query(default=1),

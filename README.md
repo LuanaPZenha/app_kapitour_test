@@ -77,10 +77,14 @@ O backend foi evoluído de um monolito FastAPI para **cinco microserviços indep
 | Python 3.11 + FastAPI | API REST de cada microserviço |
 | SQLAlchemy 2 | ORM e persistência |
 | SQLite3 | Banco por domínio (um arquivo `.db` por serviço) |
-| python-jose + bcrypt | JWT e hash de senhas |
+| Redis 7 | Cache, sessões, blacklist JWT, rate limiting, broker Celery |
+| Celery + Flower | Filas assíncronas e monitoramento de workers |
+| Argon2 + bcrypt | Hash de senhas (Argon2 novo, bcrypt legado) |
+| python-jose | JWT access + refresh tokens |
+| Prometheus client | Métricas HTTP em `/api/metrics` |
 | nginx | API Gateway (roteamento `/api/*`) |
 | Docker Compose | Orquestração local dos serviços |
-| pytest + pytest-bdd | Testes unitários e cenários BDD (Gherkin PT) |
+| pytest + pytest-bdd | Testes unitários, integração e cenários BDD (Gherkin PT) |
 
 ---
 
@@ -149,10 +153,15 @@ flowchart TB
 | **commerce** | `kapitour-commerce` | Produtos, estoque, cupons | `commerce.db` |
 | **kapipass** | `kapitour-kapipass` | Gamificação completa | `kapipass.db` |
 | **gateway** | `kapitour-gateway` | Proxy reverso único na porta 8000 | — |
+| **redis** | `kapitour-redis` | Cache, sessões, blacklist JWT, rate limit, broker Celery | volume `redis_data` |
+| **worker** | `kapitour-worker` | Tarefas assíncronas (e-mail, QR, KapiPass, logs) | — |
+| **flower** | `kapitour-flower` | Monitor Celery (UI) | porta **5555** |
 
 Cada microserviço expõe:
 
-- `GET /api/health` — health check individual (via gateway ou direto no container)
+- `GET /api/health` — health check (banco + Redis)
+- `GET /api/status` — status detalhado (banco, Redis, workers)
+- `GET /api/metrics` — métricas Prometheus
 - Documentação Swagger em `/docs` **dentro do container** (não exposta pelo gateway)
 
 ### Comunicação entre serviços
@@ -204,6 +213,23 @@ backend/services/{servico}/app/
 
 O monolito legado permanece em `backend/app/` para compatibilidade (`docker compose --profile monolith`).
 
+### Infraestrutura compartilhada (`backend/shared/kapitour_shared/`)
+
+Camada transversal de produção reutilizada por todos os microserviços:
+
+```
+backend/shared/kapitour_shared/
+├── core/           # App factory, logging estruturado, health/metrics
+├── cache/          # Cliente Redis + cache-aside
+├── security/       # JWT, Argon2, RBAC, sanitização
+├── middleware/     # Request ID, timing, rate limit, headers OWASP, erros
+├── queues/         # Configuração Celery
+├── workers/        # Tarefas assíncronas
+└── events/         # Auditoria centralizada (login, logout, alterações)
+```
+
+**Factory de aplicação:** todos os microserviços usam `criar_aplicacao()` que registra middlewares, CORS, compressão GZip e rotas de monitoramento automaticamente.
+
 ---
 
 ## Frontend (app mobile)
@@ -254,7 +280,7 @@ app_kapitour_test/
 ├── lib/                        # API, casos de uso, infraestrutura
 ├── __tests__/                  # Testes Jest (frontend)
 ├── backend/
-│   ├── shared/kapitour_shared/ # JWT, config, clientes HTTP, utils
+│   ├── shared/kapitour_shared/ # JWT, Redis, Celery, middleware, RBAC, cache
 │   ├── services/
 │   │   ├── auth/app/
 │   │   ├── content/app/
@@ -485,20 +511,153 @@ Swagger interativo (por serviço, dentro do container): acesse o serviço direta
 
 ## Autenticação (JWT)
 
-1. **Registro ou login** retorna `{ access_token, user }`
+### Fluxo compatível com o app mobile
+
+1. **Registro ou login** retorna `{ access_token, token_type, refresh_token?, user }` — o app React Native continua usando apenas `access_token`
 2. O app armazena o token e envia em requisições protegidas:
 
 ```http
 Authorization: Bearer <access_token>
 ```
 
-3. Tokens são assinados com `JWT_SECRET` (algoritmo HS256, validade configurável em `jwt_expire_minutes`)
+### Tokens
+
+| Token | Validade padrão | Uso |
+|-------|-----------------|-----|
+| **Access** | 30 min (`JWT_ACCESS_EXPIRE_MINUTES`) | API requests |
+| **Refresh** | 7 dias (`JWT_REFRESH_EXPIRE_DAYS`) | Renovar access token |
+
+### Endpoints de autenticação
+
+| Método | Rota | Descrição |
+|--------|------|-----------|
+| POST | `/api/auth/register` | Cadastro (retorna tokens + user) |
+| POST | `/api/auth/login` | Login |
+| POST | `/api/auth/refresh` | Renovar tokens (rotação de refresh) |
+| POST | `/api/auth/logout` | Invalidar tokens (blacklist Redis) |
+| GET | `/api/auth/me` | Perfil autenticado |
+| POST | `/api/auth/change-password` | Alterar senha (autenticado) |
+| POST | `/api/auth/forgot-password` | Solicitar recuperação por e-mail |
+| POST | `/api/auth/reset-password` | Redefinir senha com token |
+| GET | `/api/auth/verify-email?token=` | Confirmar e-mail |
+
+### RBAC (Roles)
+
+| Role | tipo_usuario_id | Permissões principais |
+|------|-----------------|----------------------|
+| ADMIN | 1 | Gestão completa |
+| EMPRESA | 2 | Cupons, campanhas, relatórios |
+| TURISTA | 3 | Favoritos, KapiPass, resgate de cupons |
+| GUIA | 4 | Conteúdo, rotas |
+
+O JWT inclui claim `role` derivado de `tipo_usuario_id`.
+
+### Segurança
+
+- Hash **Argon2** para novas senhas; **bcrypt** legado migrado automaticamente no login
+- Blacklist de tokens via **Redis** no logout
+- Rate limit reforçado em login (5/min) e cadastro (3/min)
+- PATCH `/api/usuarios/{auth_id}` exige que o token corresponda ao `auth_id`
 
 4. Rotas **internas** (`/api/internal/*`) exigem header:
 
 ```http
 X-Internal-Key: <INTERNAL_SERVICE_KEY>
 ```
+
+### Variáveis de ambiente (autenticação)
+
+```env
+JWT_SECRET=altere-em-producao
+JWT_ACCESS_EXPIRE_MINUTES=30
+JWT_REFRESH_EXPIRE_DAYS=7
+REDIS_URL=redis://localhost:6379/0
+REDIS_ENABLED=true
+```
+
+### Segurança por escopo (Etapa 2)
+
+Rotas que aceitam `usuario_id` agora **exigem JWT** e validam que o id corresponde ao token:
+
+| Serviço | Rotas protegidas |
+|---------|------------------|
+| **engagement** | favoritos, avaliações (com `usuario_id`) |
+| **kapipass** | listagens com `usuario_id` (checkins, carimbos, etc.) |
+| **commerce** | cupons resgatados, verificar, resgatar |
+
+**Exceção EMPRESA:** parceiros podem consultar/resgatar cupons para turistas via QR (`LeitorQR`), quando `parceiro_id` coincide com o token.
+
+O app mobile continua enviando `usuario_id` + Bearer — compatível sem alteração nas telas.
+
+### Cache Redis (Etapa 2)
+
+| Serviço | Dados em cache |
+|---------|----------------|
+| **content** | categorias, pontos, rotas |
+| **engagement** | favoritos, média de avaliações |
+| **commerce** | produtos, cupons disponíveis, resgatados |
+| **kapipass** | níveis, rankings, progresso por usuário |
+
+Invalidação automática nas operações de escrita.
+
+### Frontend — refresh token e logout (Etapa 2)
+
+- `lib/api/cliente-http.js`: persiste `refresh_token`, renova access token automaticamente em 401
+- `lib/api/autenticacao.js`: login/register salvam ambos os tokens; logout chama `POST /auth/logout`
+
+### PostgreSQL e Alembic (Etapa 3)
+
+Por padrão o projeto continua usando **SQLite** (compatível com desenvolvimento local e testes). Para PostgreSQL:
+
+```bash
+docker compose --profile postgres up -d postgres
+```
+
+| Variável | Descrição |
+|----------|-----------|
+| `DATABASE_URL` | URL SQLAlchemy por serviço (ex.: `postgresql+psycopg2://kapitour:kapitour@localhost:5432/kapitour_auth`) |
+| `USAR_ALEMBIC` | `true` aplica migrações versionadas em vez de `create_all` |
+| `POSTGRES_PASSWORD` | Senha do container Postgres |
+
+O script `backend/database/postgres/init-databases.sh` cria os bancos `kapitour_auth`, `kapitour_content`, `kapitour_engagement`, `kapitour_commerce` e `kapitour_kapipass`.
+
+**Alembic:** migração inicial em `backend/services/auth/alembic/`. Runner compartilhado em `kapitour_shared/database/migracoes.py`.
+
+### SMTP e e-mail assíncrono (Etapa 3)
+
+| Variável | Descrição |
+|----------|-----------|
+| `SMTP_HOST` | Servidor SMTP (vazio = modo dev, apenas log) |
+| `SMTP_PORT` | Porta (padrão 587) |
+| `SMTP_USER` / `SMTP_PASSWORD` | Credenciais |
+| `EMAIL_FROM` | Remetente |
+
+Recuperação de senha e confirmação de e-mail usam `ServicoEmail` + fila Celery (`kapitour.enviar_email`).
+
+### Cobertura de testes (Etapa 3)
+
+```bash
+cd backend
+python scripts/run_tests.py all
+python scripts/run_tests.py shared --cov
+```
+
+Meta de cobertura: **70%** nos módulos core de `kapitour_shared` (security, cache, email, workers, autenticação).
+
+### Paginação e Swagger (Etapa 4)
+
+Listagens de **pontos turísticos** e **rotas** aceitam parâmetros opcionais:
+
+| Parâmetro | Descrição |
+|-----------|-----------|
+| `pagina` | Número da página (≥ 1) |
+| `tamanho` | Itens por página (1–100) |
+
+Sem `pagina`/`tamanho`, a API retorna a **lista completa** (compatível com o app React Native). Com paginação, retorna `{ itens, pagina, tamanho, total, total_paginas }`.
+
+Helper compartilhado: `kapitour_shared/core/paginacao.py`.
+
+Swagger (`/docs`) inclui tags, summaries, exemplos de modelos e códigos HTTP nas rotas de auth e content.
 
 ---
 

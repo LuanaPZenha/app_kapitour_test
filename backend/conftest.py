@@ -1,7 +1,12 @@
 """Configuração global de pytest — evita conflito backend/app vs services/*/app."""
 
+import os
 import sys
 from pathlib import Path
+
+# Testes rodam sem Redis/Celery externo por padrão
+os.environ.setdefault("REDIS_ENABLED", "false")
+os.environ.setdefault("CELERY_TASK_ALWAYS_EAGER", "true")
 
 BACKEND = Path(__file__).resolve().parent
 
