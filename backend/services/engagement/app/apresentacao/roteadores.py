@@ -1,7 +1,5 @@
 from typing import Annotated
 
-from typing import Annotated
-
 from fastapi import APIRouter, Depends, Header, HTTPException
 
 from app.apresentacao.dependencias import (
@@ -41,7 +39,12 @@ def _invalidar_avaliacoes_ponto(cache: ServicoCache, ponto_id: int) -> None:
     cache.invalidar(f"avaliacoes:media:{ponto_id}")
 
 
-@roteador.get("/favoritos", tags=["engajamento"])
+@roteador.get(
+    "/favoritos",
+    tags=["engajamento"],
+    summary="Listar favoritos do usuário",
+    responses={401: {"description": "Token ausente ou inválido"}},
+)
 def list_favoritos(
     usuario_id: int,
     usuario: UsuarioToken = Depends(obter_usuario_obrigatorio_do_token),
@@ -51,7 +54,13 @@ def list_favoritos(
     return servico.listar_com_pontos(uid)
 
 
-@roteador.post("/favoritos", response_model=FavoritoResponse, tags=["engajamento"])
+@roteador.post(
+    "/favoritos",
+    response_model=FavoritoResponse,
+    tags=["engajamento"],
+    summary="Adicionar ponto aos favoritos",
+    responses={401: {"description": "Não autenticado"}},
+)
 def create_favorito(
     payload: FavoritoCreate,
     usuario: UsuarioToken = Depends(obter_usuario_obrigatorio_do_token),
@@ -80,7 +89,12 @@ def delete_favorito(
     return {"success": True}
 
 
-@roteador.get("/avaliacoes", tags=["engajamento"])
+@roteador.get(
+    "/avaliacoes",
+    tags=["engajamento"],
+    summary="Listar avaliações por ponto ou usuário",
+    responses={401: {"description": "Necessário ao filtrar por usuario_id"}},
+)
 def list_avaliacoes(
     ponto_id: int | None = None,
     usuario_id: int | None = None,
@@ -149,7 +163,11 @@ def create_ponto_avaliacao(
     return resultado
 
 
-@roteador.get("/ponto-avaliacoes/media", tags=["engajamento"])
+@roteador.get(
+    "/ponto-avaliacoes/media",
+    tags=["engajamento"],
+    summary="Média de notas de um ponto turístico",
+)
 def media_ponto_avaliacoes(
     ponto_id: int,
     servico: ServicoAvaliacao = Depends(obter_servico_avaliacao),

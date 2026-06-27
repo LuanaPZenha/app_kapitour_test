@@ -31,7 +31,7 @@ from kapitour_shared.cache.cache_service import ServicoCache
 roteador = APIRouter()
 
 
-@roteador.get("/kapipass/me", tags=["kapipass"])
+@roteador.get("/kapipass/me", tags=["kapipass"], summary="Passaporte e progresso do usuário autenticado")
 def kapipass_me(
     usuario: UsuarioToken = Depends(obter_usuario_obrigatorio_do_token),
     servico: ServicoGamificacao = Depends(obter_servico_gamificacao),
@@ -47,7 +47,12 @@ def kapipass_niveis(servico: ServicoGamificacao = Depends(obter_servico_gamifica
     return servico.listar_niveis()
 
 
-@roteador.post("/kapipass/checkin", tags=["kapipass"])
+@roteador.post(
+    "/kapipass/checkin",
+    tags=["kapipass"],
+    summary="Registrar check-in em ponto turístico",
+    responses={400: {"description": "Check-in inválido ou duplicado"}},
+)
 def kapipass_checkin(
     payload: CheckinRequest,
     usuario: UsuarioToken = Depends(obter_usuario_obrigatorio_do_token),
@@ -210,11 +215,24 @@ def kapipass_concluir_tesouro(
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
-@roteador.get("/kapipass/rankings", tags=["kapipass"])
+@roteador.get(
+    "/kapipass/rankings",
+    tags=["kapipass"],
+    summary="Ranking de jogadores por categoria",
+    responses={
+        200: {
+            "description": "Ranking paginado. Aceita `pagina`/`tamanho` ou `page`/`size` (legado).",
+        }
+    },
+)
 def kapipass_rankings(
-    categoria: str = Query(default="exploradores"),
-    page: int = Query(default=1),
-    size: int = Query(default=20),
+    categoria: str = Query(default="exploradores", description="exploradores, carimbos, eco ou xp"),
+    pagina: int | None = Query(default=None, ge=1, description="Número da página"),
+    tamanho: int | None = Query(default=None, ge=1, le=100, description="Itens por página"),
+    page: int = Query(default=1, ge=1, description="Alias legado para pagina"),
+    size: int = Query(default=20, ge=1, le=100, description="Alias legado para tamanho"),
     servico: ServicoRanking = Depends(obter_servico_ranking),
 ):
-    return servico.obter_ranking(categoria, page, size)
+    pagina_efetiva = pagina if pagina is not None else page
+    tamanho_efetivo = tamanho if tamanho is not None else size
+    return servico.obter_ranking(categoria, pagina_efetiva, tamanho_efetivo)

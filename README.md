@@ -621,7 +621,7 @@ docker compose --profile postgres up -d postgres
 
 O script `backend/database/postgres/init-databases.sh` cria os bancos `kapitour_auth`, `kapitour_content`, `kapitour_engagement`, `kapitour_commerce` e `kapitour_kapipass`.
 
-**Alembic:** migração inicial em `backend/services/auth/alembic/`. Runner compartilhado em `kapitour_shared/database/migracoes.py`.
+**Alembic:** migração inicial em cada serviço (`backend/services/{servico}/alembic/`). Runner compartilhado em `kapitour_shared/database/migracoes.py`.
 
 ### SMTP e e-mail assíncrono (Etapa 3)
 
@@ -658,6 +658,32 @@ Sem `pagina`/`tamanho`, a API retorna a **lista completa** (compatível com o ap
 Helper compartilhado: `kapitour_shared/core/paginacao.py`.
 
 Swagger (`/docs`) inclui tags, summaries, exemplos de modelos e códigos HTTP nas rotas de auth e content.
+
+### Alembic em todos os serviços + Swagger ampliado (Etapa 5)
+
+Migrações versionadas Alembic em **todos** os microserviços:
+
+| Serviço | Pasta Alembic |
+|---------|---------------|
+| auth | `backend/services/auth/alembic/` |
+| content | `backend/services/content/alembic/` |
+| commerce | `backend/services/commerce/alembic/` |
+| engagement | `backend/services/engagement/alembic/` |
+| kapipass | `backend/services/kapipass/alembic/` |
+
+Com PostgreSQL (`--profile postgres`), defina no `.env` as URLs por serviço e `USAR_ALEMBIC=true`:
+
+```bash
+AUTH_DATABASE_URL=postgresql+psycopg2://kapitour:kapitour@postgres:5432/kapitour_auth
+CONTENT_DATABASE_URL=postgresql+psycopg2://kapitour:kapitour@postgres:5432/kapitour_content
+# ... engagement, commerce, kapipass
+USAR_ALEMBIC=true
+docker compose --profile postgres up -d
+```
+
+**Paginação ampliada:** `GET /produtos` e `GET /cupons/disponiveis` aceitam `pagina`/`tamanho` opcionais (sem parâmetros = resposta atual, compatível com o app). Rankings KapiPass aceitam `pagina`/`tamanho` além de `page`/`size`.
+
+**Swagger:** documentação enriquecida em commerce, engagement e kapipass (`/docs` em cada serviço ou via gateway).
 
 ---
 

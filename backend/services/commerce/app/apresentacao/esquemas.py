@@ -1,6 +1,6 @@
 from datetime import date, datetime
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class ProdutoResponse(BaseModel):
@@ -13,6 +13,14 @@ class ProdutoResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class ProdutosPaginadosResponse(BaseModel):
+    itens: list[ProdutoResponse]
+    pagina: int = Field(ge=1)
+    tamanho: int = Field(ge=1, le=100)
+    total: int = Field(ge=0)
+    total_paginas: int = Field(ge=0)
 
 
 class TipoProdutoResponse(BaseModel):

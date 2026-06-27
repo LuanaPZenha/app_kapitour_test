@@ -1,13 +1,16 @@
 from datetime import date, datetime
+from pathlib import Path
 
 from sqlalchemy.orm import Session
 
 from app.infraestrutura.persistencia.modelos import Campanha, Cupom, Estoque, Produto, TipoProduto
-from kapitour_shared.banco_dados import BaseModelo, motor_banco
+from kapitour_shared.database.migracoes import executar_migracoes as executar_migracoes_base
+
+_ALEMBIC_INI = Path(__file__).resolve().parents[1] / "alembic.ini"
 
 
 def executar_migracoes() -> None:
-    BaseModelo.metadata.create_all(bind=motor_banco)
+    executar_migracoes_base(_ALEMBIC_INI)
 
 
 def semear_dados_iniciais(sessao: Session) -> None:

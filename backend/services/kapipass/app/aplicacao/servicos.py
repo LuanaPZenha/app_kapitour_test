@@ -635,7 +635,7 @@ class ServicoRanking:
                     "unidade": unidade,
                 }
             )
-        return {"categoria": categoria, "page": pagina, "size": tamanho, "itens": itens}
+        return {"categoria": categoria, "page": pagina, "size": tamanho, "pagina": pagina, "tamanho": tamanho, "itens": itens}
 
     def _buscar_linhas_ranking(self, categoria: str, pagina: int, tamanho: int) -> tuple:
         estrategia = self._estrategias.get(categoria, self._estrategias["exploradores"])

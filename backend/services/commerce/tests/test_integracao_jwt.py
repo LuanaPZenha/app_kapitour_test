@@ -58,3 +58,18 @@ class TestCommerceJWT:
     def test_produtos_publicos(self, cliente):
         resposta = cliente.get("/api/produtos")
         assert resposta.status_code == 200
+
+    def test_produtos_paginados(self, cliente):
+        resposta = cliente.get("/api/produtos", params={"pagina": 1, "tamanho": 5})
+        assert resposta.status_code == 200
+        corpo = resposta.json()
+        assert "itens" in corpo
+        assert corpo["pagina"] == 1
+        assert corpo["tamanho"] == 5
+
+    def test_cupons_disponiveis_paginados(self, cliente):
+        resposta = cliente.get("/api/cupons/disponiveis", params={"pagina": 1, "tamanho": 10})
+        assert resposta.status_code == 200
+        corpo = resposta.json()
+        assert corpo["success"] is True
+        assert "itens" in corpo["data"]

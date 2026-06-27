@@ -61,7 +61,8 @@ services:
     container_name: kapitour-auth
     environment:
       <<: *service-env
-      DATABASE_URL: sqlite:///database/auth.db
+      DATABASE_URL: ${AUTH_DATABASE_URL:-sqlite:///database/auth.db}
+      USAR_ALEMBIC: ${USAR_ALEMBIC:-false}
       SERVICE_NAME: auth
     volumes:
       - ./database:/app/database
@@ -85,7 +86,8 @@ services:
     container_name: kapitour-content
     environment:
       <<: *service-env
-      DATABASE_URL: sqlite:///database/content.db
+      DATABASE_URL: ${CONTENT_DATABASE_URL:-sqlite:///database/content.db}
+      USAR_ALEMBIC: ${USAR_ALEMBIC:-false}
       SERVICE_NAME: content
     volumes:
       - ./database:/app/database
@@ -109,7 +111,8 @@ services:
     container_name: kapitour-engagement
     environment:
       <<: *service-env
-      DATABASE_URL: sqlite:///database/engagement.db
+      DATABASE_URL: ${ENGAGEMENT_DATABASE_URL:-sqlite:///database/engagement.db}
+      USAR_ALEMBIC: ${USAR_ALEMBIC:-false}
       SERVICE_NAME: engagement
     volumes:
       - ./database:/app/database
@@ -133,7 +136,8 @@ services:
     container_name: kapitour-commerce
     environment:
       <<: *service-env
-      DATABASE_URL: sqlite:///database/commerce.db
+      DATABASE_URL: ${COMMERCE_DATABASE_URL:-sqlite:///database/commerce.db}
+      USAR_ALEMBIC: ${USAR_ALEMBIC:-false}
       SERVICE_NAME: commerce
     volumes:
       - ./database:/app/database
@@ -157,7 +161,8 @@ services:
     container_name: kapitour-kapipass
     environment:
       <<: *service-env
-      DATABASE_URL: sqlite:///database/kapipass.db
+      DATABASE_URL: ${KAPIPASS_DATABASE_URL:-sqlite:///database/kapipass.db}
+      USAR_ALEMBIC: ${USAR_ALEMBIC:-false}
       SERVICE_NAME: kapipass
     volumes:
       - ./database:/app/database

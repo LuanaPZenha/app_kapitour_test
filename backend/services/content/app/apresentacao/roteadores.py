@@ -38,7 +38,6 @@ def list_categorias(servico: ServicoCategorias = Depends(obter_servico_categoria
 
 @roteador.get(
     "/pontos-turisticos",
-    response_model=list[PontoTuristicoResponse],
     tags=["conteudo"],
     summary="Listar pontos turísticos",
     responses={
