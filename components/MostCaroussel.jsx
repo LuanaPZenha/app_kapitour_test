@@ -85,8 +85,8 @@ export default function MostCaroussel({ onRotaPress }) {
   const { user } = useAuth();
   const [userInfo, setUserInfo] = useState(null);
 
-  const fetchFavoritos = useCallback(async (usuarioId) => {
-    const { data, error } = await dbApi.listFavoritos(usuarioId);
+  const fetchFavoritos = useCallback(async () => {
+    const { data, error } = await dbApi.listFavoritos();
     if (error) {
       console.error("Erro ao buscar favoritos:", error);
       return;
@@ -107,7 +107,7 @@ export default function MostCaroussel({ onRotaPress }) {
         return;
       }
       setUserInfo(data);
-      fetchFavoritos(data.id);
+      fetchFavoritos();
     });
   }, [user, fetchFavoritos]);
 
@@ -121,11 +121,11 @@ export default function MostCaroussel({ onRotaPress }) {
 
     try {
       if (isFavorito(pontoId)) {
-        const { error } = await dbApi.removeFavorito(userInfo.id, pontoId);
+        const { error } = await dbApi.removeFavorito(pontoId);
         if (error) throw error;
         setFavoritos((prev) => prev.filter((id) => id !== pontoId));
       } else {
-        const { error } = await dbApi.addFavorito(userInfo.id, pontoId);
+        const { error } = await dbApi.addFavorito(pontoId);
         if (error) throw error;
         setFavoritos((prev) => [...prev, pontoId]);
       }

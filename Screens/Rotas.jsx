@@ -150,7 +150,7 @@ export default function Rotas() {
   const fetchFavoritos = useCallback(async () => {
     if (!authUserInfo?.id) return;
     try {
-      const { data } = await dbApi.listFavoritos(authUserInfo.id);
+      const { data } = await dbApi.listFavoritos();
       setFavoritos((data || []).map((f) => f.ponto_id));
     } catch {}
   }, [authUserInfo]);
@@ -220,10 +220,10 @@ export default function Rotas() {
     }
     try {
       if (isFavorito(pontoId)) {
-        await dbApi.removeFavorito(authUserInfo.id, pontoId);
+        await dbApi.removeFavorito(pontoId);
         setFavoritos((prev) => prev.filter((id) => id !== pontoId));
       } else {
-        await dbApi.addFavorito(authUserInfo.id, pontoId);
+        await dbApi.addFavorito(pontoId);
         setFavoritos((prev) => [...prev, pontoId]);
       }
     } catch (err) {

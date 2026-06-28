@@ -57,8 +57,12 @@ class TestEscopoUsuario:
 
     def test_empresa_pode_consultar_cupom_de_turista(self):
         empresa = UsuarioToken(id=2, auth_id="e", role=Role.EMPRESA)
-        validar_consulta_cupom_usuario(empresa, 99)
+        assert validar_consulta_cupom_usuario(empresa, 99) == 99
 
     def test_empresa_resgata_com_parceiro_correto(self):
         empresa = UsuarioToken(id=2, auth_id="e", role=Role.EMPRESA)
-        validar_resgate_cupom(empresa, usuario_id=99, parceiro_id=2)
+        assert validar_resgate_cupom(empresa, usuario_id=99, parceiro_id=2) == 99
+
+    def test_turista_consulta_cupom_sem_usuario_id(self):
+        turista = UsuarioToken(id=10, auth_id="t", role=Role.TURISTA)
+        assert validar_consulta_cupom_usuario(turista, None) == 10

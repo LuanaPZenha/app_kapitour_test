@@ -91,22 +91,32 @@ def resolver_usuario_escopo(usuario: UsuarioToken, usuario_id: int | None = None
     return usuario_id
 
 
-def validar_consulta_cupom_usuario(usuario: UsuarioToken, usuario_id: int) -> None:
-    """Empresa pode consultar cupons de turistas; demais roles só o próprio id."""
+def validar_consulta_cupom_usuario(usuario: UsuarioToken, usuario_id: int | None) -> int:
+    """Empresa consulta turista (usuario_id obrigatório); demais usam o JWT."""
     if usuario.role == Role.EMPRESA:
-        return
-    if usuario_id != usuario.id:
-        raise HTTPException(status_code=403, detail="Acesso negado ao usuario_id informado")
+        if usuario_id is None:
+            raise HTTPException(
+                status_code=400,
+                detail="usuario_id é obrigatório para consulta de cupom pela empresa",
+            )
+        return usuario_id
+    return resolver_usuario_escopo(usuario, usuario_id)
 
 
-def validar_resgate_cupom(usuario: UsuarioToken, usuario_id: int, parceiro_id: int) -> None:
-    """Empresa resgata para turista quando parceiro_id coincide com o token."""
+def validar_resgate_cupom(
+    usuario: UsuarioToken, usuario_id: int | None, parceiro_id: int | None
+) -> int:
+    """Empresa resgata para turista; turista usa apenas o JWT."""
     if usuario.role == Role.EMPRESA:
+        if usuario_id is None:
+            raise HTTPException(
+                status_code=400,
+                detail="usuario_id é obrigatório para resgate pela empresa",
+            )
         if parceiro_id != usuario.id:
             raise HTTPException(status_code=403, detail="parceiro_id não corresponde ao token")
-        return
-    if usuario_id != usuario.id:
-        raise HTTPException(status_code=403, detail="usuario_id não corresponde ao token")
+        return usuario_id
+    return resolver_usuario_escopo(usuario, usuario_id)
 
 
 # Reexportações de compatibilidade

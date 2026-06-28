@@ -30,7 +30,7 @@ def token_turista():
 
 class TestEngagementJWT:
     def test_favoritos_sem_token_retorna_401(self, cliente):
-        resposta = cliente.get("/api/favoritos", params={"usuario_id": 99})
+        resposta = cliente.get("/api/favoritos")
         assert resposta.status_code == 401
 
     def test_favoritos_usuario_id_errado_retorna_403(self, cliente, token_turista):
@@ -45,6 +45,14 @@ class TestEngagementJWT:
         resposta = cliente.get(
             "/api/favoritos",
             params={"usuario_id": 99},
+            headers={"Authorization": f"Bearer {token_turista}"},
+        )
+        assert resposta.status_code == 200
+        assert isinstance(resposta.json(), list)
+
+    def test_favoritos_sem_usuario_id_usa_jwt(self, cliente, token_turista):
+        resposta = cliente.get(
+            "/api/favoritos",
             headers={"Authorization": f"Bearer {token_turista}"},
         )
         assert resposta.status_code == 200

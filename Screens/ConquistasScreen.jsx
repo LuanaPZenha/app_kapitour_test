@@ -33,7 +33,7 @@ export default function ConquistasScreen() {
       setLoading(false);
       return;
     }
-    const { data, error } = await kapipassApi.listConquistas(userInfo.id);
+    const { data, error } = await kapipassApi.listConquistas();
     if (!error) setConquistas(data || []);
     setLoading(false);
     setRefreshing(false);

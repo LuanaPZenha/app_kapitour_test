@@ -153,7 +153,7 @@ const AreaUsuario = () => {
     if (!authUserInfo?.id) return;
     setLoadingFavoritos(true);
     try {
-      const { data: favData } = await dbApi.listFavoritos(authUserInfo.id);
+      const { data: favData } = await dbApi.listFavoritos();
       const listaFavoritos = favData || [];
       setFavoritos(listaFavoritos);
 
@@ -281,7 +281,7 @@ const AreaUsuario = () => {
 
   const removeFavorito = async (pontoId) => {
     try {
-      await dbApi.removeFavorito(userInfo.id, pontoId);
+      await dbApi.removeFavorito(pontoId);
       fetchFavoritos();
       fetchRotasFavoritas();
     } catch {

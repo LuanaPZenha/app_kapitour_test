@@ -36,7 +36,7 @@ export default function TesourosScreen() {
       setLoading(false);
       return;
     }
-    const { data, error } = await kapipassApi.listTesouros(userInfo.id);
+    const { data, error } = await kapipassApi.listTesouros();
     if (!error) setTesouros(data || []);
     setLoading(false);
     setRefreshing(false);

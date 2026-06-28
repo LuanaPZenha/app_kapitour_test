@@ -167,8 +167,8 @@ export default function KapiPassScreen() {
     }
     const [pass, cars, conqs] = await Promise.all([
       kapipassApi.getPassaporte(),
-      kapipassApi.listCarimbos(userInfo.id),
-      kapipassApi.listConquistas(userInfo.id),
+      kapipassApi.listCarimbos(),
+      kapipassApi.listConquistas(),
     ]);
     if (!pass.error) setPassaporte(pass.data);
     if (!cars.error) setCarimbos(cars.data || []);

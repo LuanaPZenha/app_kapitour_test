@@ -19,6 +19,8 @@ import Svg, {
 import { colors } from "../theme/colors";
 import { ACTIVE_BRAND_FONT, BRAND_FONT_CONFIG } from "../constants/brandFont";
 import { CapybaraIcon } from "./CapybaraIcon";
+import { AppMenuButtonInline } from "./AppDrawerMenu";
+import { useAuth } from "../hooks/useAuth";
 
 const { width: screenWidth } = Dimensions.get("window");
 
@@ -92,6 +94,7 @@ function Cursor({ style }) {
 // Logo principal
 // ─────────────────────────────────────
 export default function BrandLogo({ showTagline = true, compact = false, showMascot = true }) {
+  const { isLogged } = useAuth();
   const fontConfig = BRAND_FONT_CONFIG[ACTIVE_BRAND_FONT];
 
   const [fontsLoaded] = useFonts({
@@ -215,15 +218,25 @@ export default function BrandLogo({ showTagline = true, compact = false, showMas
     return <View style={[styles.placeholder, compact && styles.placeholderCompact]} />;
   }
 
-  const iconSize = compact ? 46 : 58;
-  const mascotSize = compact ? 40 : 54;
-  const titleSize = compact ? fontConfig.titleSize.compact : fontConfig.titleSize.normal;
-  const sloganSize = compact ? 11 : 13;
+  const iconSize = compact ? 46 : isLogged ? 50 : 58;
+  const mascotSize = compact ? 40 : isLogged ? 44 : 54;
+  const titleSize = compact
+    ? fontConfig.titleSize.compact
+    : isLogged
+      ? fontConfig.titleSize.normal - 3
+      : fontConfig.titleSize.normal;
+  const sloganSize = compact ? 11 : isLogged ? 12 : 13;
+  const showMascotNow = showMascot && !compact && (!isLogged || screenWidth >= 360);
 
   return (
     <View style={[styles.container, compact && styles.containerCompact]}>
-      <View style={styles.row}>
+      {isLogged ? (
+        <View style={styles.menuAbsolute} pointerEvents="box-none">
+          <AppMenuButtonInline />
+        </View>
+      ) : null}
 
+      <View style={[styles.row, isLogged && styles.rowWithMenu]}>
         {/* Bússola animada */}
         <Animated.View
           style={[
@@ -246,9 +259,12 @@ export default function BrandLogo({ showTagline = true, compact = false, showMas
                 {
                   fontFamily: fontConfig.family,
                   fontSize: titleSize,
-                  letterSpacing: fontConfig.titleLetterSpacing,
+                  letterSpacing: isLogged ? fontConfig.titleLetterSpacing * 0.85 : fontConfig.titleLetterSpacing,
                 },
               ]}
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              minimumFontScale={0.82}
             >
               {typedMain}
               <Text style={styles.wordmarkAccent}>{typedAccent}</Text>
@@ -293,7 +309,7 @@ export default function BrandLogo({ showTagline = true, compact = false, showMas
         </View>
 
         {/* Mascote com slide + fade */}
-        {showMascot && !compact ? (
+        {showMascotNow ? (
           <Animated.View
             style={[
               styles.mascotWrap,
@@ -316,6 +332,7 @@ const styles = StyleSheet.create({
     width: "100%",
     alignItems: "center",
     paddingVertical: 4,
+    position: "relative",
   },
   containerCompact: {
     paddingVertical: 0,
@@ -331,8 +348,22 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: 12,
+    gap: 10,
     paddingHorizontal: 16,
+    maxWidth: "100%",
+  },
+  rowWithMenu: {
+    paddingLeft: 48,
+    paddingRight: 10,
+    justifyContent: "flex-start",
+  },
+  menuAbsolute: {
+    position: "absolute",
+    left: 10,
+    top: 0,
+    bottom: 0,
+    justifyContent: "center",
+    zIndex: 2,
   },
   iconWrap: {
     shadowColor: colors.primary,
@@ -352,10 +383,13 @@ const styles = StyleSheet.create({
   textBlock: {
     justifyContent: "center",
     flexShrink: 1,
+    flexGrow: 0,
+    maxWidth: screenWidth - 180,
   },
   wordmarkRow: {
     flexDirection: "row",
     alignItems: "center",
+    flexShrink: 1,
   },
   wordmark: {
     color: "#ffffff",
@@ -366,10 +400,11 @@ const styles = StyleSheet.create({
   },
   slogan: {
     color: "rgba(255, 255, 255, 0.78)",
-    marginTop: 6,
-    lineHeight: 18,
+    marginTop: 4,
+    lineHeight: 16,
     fontWeight: "600",
     includeFontPadding: false,
+    flexShrink: 1,
   },
   sloganCity: {
     color: colors.accent,

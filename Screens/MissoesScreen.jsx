@@ -35,7 +35,7 @@ export default function MissoesScreen() {
       setLoading(false);
       return;
     }
-    const { data, error } = await kapipassApi.listMissoes(userInfo.id);
+    const { data, error } = await kapipassApi.listMissoes();
     if (!error) setMissoes(data || []);
     setLoading(false);
     setRefreshing(false);

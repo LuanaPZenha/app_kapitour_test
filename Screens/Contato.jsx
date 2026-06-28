@@ -1,275 +1,399 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState } from "react";
 import {
   View,
   Text,
   StyleSheet,
-  TouchableOpacity,
-  Animated,
-  Linking,
   ScrollView,
+  Linking,
   TextInput,
   KeyboardAvoidingView,
   Platform,
 } from "react-native";
-import { FontAwesome } from "@expo/vector-icons";
-import { Ionicons } from "@expo/vector-icons";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
-import { gradients } from "../theme/gradients";
+import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
+import PressableScale from "../components/PressableScale";
+import TextField from "../components/TextField";
 import Button from "../components/Button";
+import SectionHeader from "../components/SectionHeader";
+import { useAppAlert } from "../components/AppAlert";
+import { colors } from "../theme/colors";
+import { gradients } from "../theme/gradients";
+import { layout, radius, spacing } from "../theme/spacing";
+import { typography } from "../theme/typography";
+import { shadows } from "../theme/shadows";
 
-const Contato = () => {
+const EMAIL_CONTATO = "plataformadigitalkapitour@gmail.com";
+
+const CANAIS = [
+  {
+    id: "phone",
+    icon: "call-outline",
+    eyebrow: "LIGAR AGORA",
+    title: "(21) 98358-1550",
+    subtitle: "Atendimento por telefone",
+    url: "tel:+5521983581550",
+    tint: colors.primary,
+  },
+  {
+    id: "whatsapp",
+    icon: "logo-whatsapp",
+    eyebrow: "WHATSAPP",
+    title: "Fale conosco",
+    subtitle: "Resposta mais rápida pelo app",
+    url: "https://wa.me/5521983581550?text=Ol%C3%A1!%20Vim%20pelo%20app%20Kapitour%20e%20gostaria%20de%20falar%20com%20a%20equipe.",
+    tint: "#25D366",
+  },
+  {
+    id: "email",
+    icon: "mail-outline",
+    eyebrow: "E-MAIL",
+    title: EMAIL_CONTATO,
+    subtitle: "Suporte e parcerias",
+    url: `mailto:${EMAIL_CONTATO}`,
+    tint: colors.accent,
+  },
+  {
+    id: "instagram",
+    icon: "logo-instagram",
+    eyebrow: "REDES SOCIAIS",
+    title: "@kapi.tour",
+    subtitle: "Novidades e dicas de Maricá",
+    url: "https://www.instagram.com/kapi.tour",
+    tint: "#E1306C",
+  },
+];
+
+function CanalCard({ icon, eyebrow, title, subtitle, tint, onPress }) {
+  return (
+    <PressableScale
+      onPress={onPress}
+      contentStyle={[styles.card, shadows.card]}
+      accessibilityLabel={`${title}. ${subtitle}`}
+    >
+      <View style={[styles.cardStripe, { backgroundColor: tint }]} />
+      <View style={[styles.cardIconWrap, { backgroundColor: `${tint}22` }]}>
+        <Ionicons name={icon} size={22} color={tint} />
+      </View>
+      <View style={styles.cardBody}>
+        <Text style={styles.cardEyebrow}>{eyebrow}</Text>
+        <Text style={styles.cardTitle} numberOfLines={2}>
+          {title}
+        </Text>
+        <Text style={styles.cardSubtitle}>{subtitle}</Text>
+      </View>
+      <Ionicons name="chevron-forward" size={18} color={colors.textSecondary} />
+    </PressableScale>
+  );
+}
+
+export default function Contato() {
   const navigation = useNavigation();
+  const { showAlert } = useAppAlert();
   const [showForm, setShowForm] = useState(false);
-  const scale = useRef(new Animated.Value(1)).current;
+  const [nome, setNome] = useState("");
+  const [email, setEmail] = useState("");
+  const [mensagem, setMensagem] = useState("");
 
-  useEffect(() => {
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(scale, {
-          toValue: 1.1,
-          duration: 1000,
-          useNativeDriver: true,
-        }),
-        Animated.timing(scale, {
-          toValue: 1,
-          duration: 1000,
-          useNativeDriver: true,
-        }),
-      ])
-    ).start();
-  }, []);
-
-  const handleLinkPress = async (url) => {
-    const supported = await Linking.canOpenURL(url);
-    if (supported) {
-      Linking.openURL(url);
-    } else {
-      alert("Não foi possível abrir o link.");
+  const abrirLink = async (url) => {
+    try {
+      const ok = await Linking.canOpenURL(url);
+      if (!ok) {
+        showAlert({
+          icon: "alert-circle-outline",
+          iconColor: colors.primary,
+          title: "Link indisponível",
+          message: "Não foi possível abrir este contato no seu dispositivo.",
+          buttons: [{ text: "OK" }],
+        });
+        return;
+      }
+      await Linking.openURL(url);
+    } catch {
+      showAlert({
+        icon: "alert-circle-outline",
+        iconColor: colors.primary,
+        title: "Erro ao abrir",
+        message: "Tente novamente ou use outro canal de contato.",
+        buttons: [{ text: "OK" }],
+      });
     }
   };
 
+  const enviarMensagem = () => {
+    if (!nome.trim() || !email.trim() || !mensagem.trim()) {
+      showAlert({
+        icon: "create-outline",
+        iconColor: colors.accent,
+        title: "Preencha o formulário",
+        message: "Informe nome, e-mail e mensagem antes de enviar.",
+        buttons: [{ text: "Entendi" }],
+      });
+      return;
+    }
+
+    const corpo = encodeURIComponent(
+      `Nome: ${nome.trim()}\nE-mail: ${email.trim()}\n\n${mensagem.trim()}`
+    );
+    abrirLink(`mailto:${EMAIL_CONTATO}?subject=${encodeURIComponent("Contato pelo app Kapitour")}&body=${corpo}`);
+  };
+
   return (
-    <View style={{ flex: 1 }}>
-      {/* Gradiente fixo no fundo */}
-      <LinearGradient
-        {...gradients.appBg}
-        style={styles.gradient}
-      />
-
-      {/* Botão de retorno */}
-      <TouchableOpacity
-        style={styles.backButton}
-        onPress={() => navigation.goBack()}
-      >
-        <Ionicons name="arrow-back" size={28} color="#fff" />
-      </TouchableOpacity>
-
-      <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
-        <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"}>
-          <Animated.Text
-            style={[
-              styles.title,
-              {
-                transform: [{ scale }],
-              },
-            ]}
+    <LinearGradient {...gradients.appBg} style={styles.flex}>
+      <SafeAreaView style={styles.flex} edges={["top"]}>
+        <KeyboardAvoidingView
+          style={styles.flex}
+          behavior={Platform.OS === "ios" ? "padding" : undefined}
+        >
+          <ScrollView
+            contentContainerStyle={styles.scroll}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
           >
-            Entre em Contato
-          </Animated.Text>
+            {navigation.canGoBack?.() ? (
+              <PressableScale
+                onPress={() => navigation.goBack()}
+                contentStyle={styles.backBtn}
+                accessibilityLabel="Voltar"
+              >
+                <Ionicons name="chevron-back" size={22} color={colors.text} />
+                <Text style={styles.backLabel}>Voltar</Text>
+              </PressableScale>
+            ) : null}
 
-          <View style={styles.btns}>
-            <TouchableOpacity
-              style={styles.contactItem}
-              onPress={() => handleLinkPress("tel:+5521983581550")}
-            >
-              <View style={styles.iconCircle}>
-                <FontAwesome name="phone" size={20} color="#fff" />
+            <View style={styles.hero}>
+              <View style={styles.heroTitleRow}>
+                <View style={styles.heroIconWrap}>
+                  <Ionicons name="mail" size={22} color={colors.accent} />
+                </View>
+                <Text style={styles.heroTitle}>Contato</Text>
               </View>
-              <Text style={styles.contactText}>(21) 98358-1550</Text>
-            </TouchableOpacity>
+              <Text style={styles.heroSubtitle}>
+                Fale com a equipe Kapitour. Estamos prontos para ajudar turistas, parceiros e
+                guias em Maricá.
+              </Text>
+            </View>
 
-            <TouchableOpacity
-              style={styles.contactItem}
-              onPress={() => handleLinkPress("mailto:plataformadigitalkapitour@gmail.com")}
-            >
-              <View style={styles.iconCircle}>
-                <FontAwesome name="envelope" size={20} color="#fff" />
-              </View>
-              <Text style={styles.contactText}>Nosso email</Text>
-            </TouchableOpacity>
+            <View style={styles.infoBanner}>
+              <Ionicons name="time-outline" size={18} color={colors.accent} />
+              <Text style={styles.infoBannerText}>
+                Horário de atendimento: seg a sex, 9h às 18h
+              </Text>
+            </View>
 
-            <TouchableOpacity
-              style={styles.contactItem}
-              onPress={() => handleLinkPress("https://www.instagram.com/kapi.tour")}
-            >
-              <View style={styles.iconCircle}>
-                <FontAwesome name="instagram" size={20} color="#fff" />
-              </View>
-              <Text style={styles.contactText}>@kapi.tour</Text>
-            </TouchableOpacity>
+            <SectionHeader title="Canais de atendimento" />
+            <View style={styles.cards}>
+              {CANAIS.map((canal) => (
+                <CanalCard
+                  key={canal.id}
+                  {...canal}
+                  onPress={() => abrirLink(canal.url)}
+                />
+              ))}
+            </View>
 
-            {!showForm && (
-              <TouchableOpacity
-                style={[styles.contactItem, styles.messageButton]}
+            <SectionHeader
+              title="Enviar mensagem"
+              subtitle="Preferimos o formulário para dúvidas detalhadas"
+              style={styles.formSectionHeader}
+            />
+
+            {!showForm ? (
+              <Button
+                icon="chatbubble-ellipses-outline"
+                variant="ghost"
+                fullWidth
                 onPress={() => setShowForm(true)}
               >
-                <View style={styles.iconCircle}>
-                  <FontAwesome name="comment" size={20} color="#fff" />
-                </View>
-                <Text style={styles.contactText}>Enviar uma mensagem</Text>
-              </TouchableOpacity>
-            )}
-          </View>
-
-          {showForm && (
-            <View style={styles.form}>
-              <Text style={styles.label}>Nome</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Seu nome"
-                placeholderTextColor="#ccc"
-              />
-
-              <Text style={styles.label}>Email</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Seu email"
-                placeholderTextColor="#ccc"
-                keyboardType="email-address"
-              />
-
-              <Text style={styles.label}>Mensagem</Text>
-              <TextInput
-                style={styles.textArea}
-                placeholder="Digite sua mensagem"
-                placeholderTextColor="#ccc"
-                multiline
-                numberOfLines={4}
-                textAlignVertical="top"
-              />
-
-              <Button icon="send-outline" fullWidth style={{ marginTop: 10 }}>
-                Enviar
+                Escrever mensagem
               </Button>
-            </View>
-          )}
+            ) : (
+              <View style={[styles.formCard, shadows.card]}>
+                <TextField
+                  value={nome}
+                  onChangeText={setNome}
+                  placeholder="Seu nome"
+                  autoCapitalize="words"
+                  accessibilityLabel="Nome"
+                />
+                <TextField
+                  value={email}
+                  onChangeText={setEmail}
+                  placeholder="Seu e-mail"
+                  keyboardType="email-address"
+                  accessibilityLabel="E-mail"
+                />
+                <Text style={styles.fieldLabel}>Mensagem</Text>
+                <TextInput
+                  style={styles.textArea}
+                  value={mensagem}
+                  onChangeText={setMensagem}
+                  placeholder="Como podemos ajudar?"
+                  placeholderTextColor={colors.inputPlaceholder}
+                  multiline
+                  numberOfLines={5}
+                  textAlignVertical="top"
+                  accessibilityLabel="Mensagem"
+                />
+                <Button icon="send-outline" fullWidth onPress={enviarMensagem}>
+                  Enviar por e-mail
+                </Button>
+                <Button variant="ghost" fullWidth onPress={() => setShowForm(false)}>
+                  Cancelar
+                </Button>
+              </View>
+            )}
+          </ScrollView>
         </KeyboardAvoidingView>
-      </ScrollView>
-    </View>
+      </SafeAreaView>
+    </LinearGradient>
   );
-};
-
-export default Contato;
+}
 
 const styles = StyleSheet.create({
-  container: {
-    flexGrow: 1,
-    paddingBottom: 90,
+  flex: { flex: 1 },
+  scroll: {
+    paddingHorizontal: layout.contentPadding,
+    paddingBottom: layout.minTouchTarget + spacing.xxl,
   },
-
-  gradient: {
-    position: "absolute", 
-    width: "100%",
-    height: "100%", 
-    top: 0,
-    left: 0,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: "600",
-    color: "#ffffff",
-    marginTop: 60,
-    marginBottom: 30,
-    textAlign: "center",
-    letterSpacing: 1,
-  },
-  btns: {
-    width: "100%",
-    marginTop: 20,
-  },
-  contactItem: {
+  backBtn: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "rgba(255, 255, 255, 0.07)",
-    paddingVertical: 16,
-    paddingHorizontal: 20,
-    borderRadius: 12,
-    marginBottom: 15,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.1)",
+    gap: spacing.xxs,
+    alignSelf: "flex-start",
+    marginTop: spacing.xs,
+    marginBottom: spacing.xs,
+    paddingVertical: spacing.xxs,
   },
-  iconCircle: {
-    width: 42,
-    height: 42,
-    backgroundColor: "#c93434",
-    borderRadius: 21,
-    justifyContent: "center",
-    alignItems: "center",
-    marginRight: 15,
-  },
-  contactText: {
-    color: "#ffffff",
-    fontSize: 16,
-    fontWeight: "500",
-    letterSpacing: 0.5,
-  },
-  messageButton: {
-    backgroundColor: "rgba(255,255,255,0.1)",
-    borderColor: "#c93434",
-    borderWidth: 1.5,
-  },
-  form: {
-    width: "100%",
-    marginTop: 30,
-    alignItems: "center", 
-  },
-  label: {
-    color: "#f0f0f0",
+  backLabel: {
+    ...typography.body,
+    color: colors.text,
     fontWeight: "600",
-    fontSize: 16,
-    marginBottom: 6,
-    letterSpacing: 0.5,
-    textShadowColor: "rgba(0, 0, 0, 0.3)",
-    textShadowOffset: { width: 1, height: 1 },
-    textShadowRadius: 1,
   },
-  input: {
-    width: "90%", 
-    backgroundColor: "rgba(255,255,255,0.05)",
-    color: "#fff",
-    paddingVertical: 8,
-    paddingHorizontal: 12, 
-    borderRadius: 8,
+  hero: {
+    paddingTop: spacing.sm,
+    paddingBottom: spacing.md,
+  },
+  heroTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.xs,
+  },
+  heroIconWrap: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "rgba(247, 160, 0, 0.15)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  heroTitle: {
+    ...typography.hero,
+    fontSize: 22,
+  },
+  heroSubtitle: {
+    ...typography.body,
+    marginTop: spacing.xs,
+    lineHeight: 20,
+    marginLeft: 36 + spacing.xs,
+  },
+  infoBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+    backgroundColor: colors.surfaceElevated,
+    borderRadius: radius.md,
     borderWidth: 1,
-    borderColor: "#444",
-    marginBottom: 12,
-    fontSize: 14,
-    height: 40,
+    borderColor: colors.borderSubtle,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    marginBottom: spacing.lg,
+  },
+  infoBannerText: {
+    ...typography.caption,
+    color: colors.textMuted,
+    fontWeight: "600",
+    flex: 1,
+  },
+  cards: {
+    gap: spacing.sm,
+    marginBottom: spacing.lg,
+  },
+  card: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: colors.cardBg,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
+    padding: spacing.sm,
+    gap: spacing.sm,
+    overflow: "hidden",
+  },
+  cardStripe: {
+    position: "absolute",
+    left: 0,
+    top: 0,
+    bottom: 0,
+    width: 3,
+  },
+  cardIconWrap: {
+    width: 44,
+    height: 44,
+    borderRadius: radius.md,
+    alignItems: "center",
+    justifyContent: "center",
+    marginLeft: spacing.xxs,
+  },
+  cardBody: {
+    flex: 1,
+    gap: 2,
+  },
+  cardEyebrow: {
+    ...typography.caption,
+    color: colors.accent,
+    letterSpacing: 1,
+    fontWeight: "700",
+    fontSize: 9,
+  },
+  cardTitle: {
+    ...typography.subtitle,
+    fontSize: 15,
+    lineHeight: 20,
+  },
+  cardSubtitle: {
+    ...typography.body,
+    fontSize: 12,
+    lineHeight: 16,
+  },
+  formSectionHeader: {
+    marginTop: spacing.xs,
+  },
+  formCard: {
+    backgroundColor: colors.cardBg,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
+    padding: spacing.md,
+    gap: spacing.xxs,
+  },
+  fieldLabel: {
+    ...typography.caption,
+    color: colors.textMuted,
+    fontWeight: "600",
+    marginBottom: spacing.xxs,
+    marginTop: spacing.xxs,
   },
   textArea: {
-    width: "90%",
-    backgroundColor: "rgba(255,255,255,0.05)",
-    color: "#fff",
-    padding: 12,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: "#444",
-    height: 90,
-    fontSize: 14,
-    marginBottom: 20,
-    textAlignVertical: "top",
-  },
-  backButton: {
-    position: "absolute",
-    top: 20,
-    left: 20,
-    zIndex: 10,
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "rgba(0,0,0,0.3)",
-    justifyContent: "center",
-    alignItems: "center",
+    backgroundColor: colors.inputBg,
+    color: colors.inputText,
+    minHeight: 120,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: radius.md,
+    ...typography.body,
+    fontSize: 16,
+    marginBottom: spacing.sm,
   },
 });

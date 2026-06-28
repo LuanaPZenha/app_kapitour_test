@@ -4,7 +4,7 @@ from pydantic import BaseModel
 
 
 class FavoritoCreate(BaseModel):
-    usuario_id: int
+    usuario_id: int | None = None
     ponto_id: int
 
 
@@ -19,7 +19,7 @@ class FavoritoResponse(BaseModel):
 
 
 class AvaliacaoCreate(BaseModel):
-    usuario_id: int
+    usuario_id: int | None = None
     ponto_id: int
     nota: int
     comentario: str | None = None

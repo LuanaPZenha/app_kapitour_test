@@ -33,7 +33,7 @@ export default function CarimbosScreen() {
       setLoading(false);
       return;
     }
-    const { data, error } = await kapipassApi.listCarimbos(userInfo.id);
+    const { data, error } = await kapipassApi.listCarimbos();
     if (!error) setCarimbos(data || []);
     setLoading(false);
     setRefreshing(false);

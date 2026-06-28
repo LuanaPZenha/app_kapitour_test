@@ -42,7 +42,7 @@ export default function DiarioScreen() {
       setLoading(false);
       return;
     }
-    const { data, error } = await kapipassApi.listDiario(userInfo.id);
+    const { data, error } = await kapipassApi.listDiario();
     if (!error) setEntradas(data || []);
     setLoading(false);
     setRefreshing(false);

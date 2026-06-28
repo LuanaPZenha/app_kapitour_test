@@ -41,5 +41,5 @@ class EstoqueResponse(BaseModel):
 
 class CupomResgateRequest(BaseModel):
     cupom_id: int
-    usuario_id: int
+    usuario_id: int | None = None
     parceiro_id: int | None = None

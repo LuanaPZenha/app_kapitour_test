@@ -1,10 +1,9 @@
 import { api } from "../lib/api";
 
-export async function submitRating(pontoId, usuarioId, nota, comentario = null) {
+export async function submitRating(pontoId, _usuarioId, nota, comentario = null) {
   try {
     const { data } = await api.post("/ponto-avaliacoes", {
       ponto_id: pontoId,
-      usuario_id: usuarioId ?? null,
       nota,
       comentario,
     });

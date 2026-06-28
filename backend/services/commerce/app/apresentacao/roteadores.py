@@ -98,10 +98,25 @@ def cupons_disponiveis(
 
 
 @roteador.get(
+    "/cupons/resgatados/me",
+    tags=["commerce"],
+    summary="Cupons resgatados do usuário autenticado",
+    responses={401: {"description": "Token ausente ou inválido"}},
+)
+def cupons_resgatados_me(
+    usuario: UsuarioToken = Depends(obter_usuario_obrigatorio_do_token),
+    servico: ServicoCupom = Depends(obter_servico_cupom),
+):
+    dados = servico.listar_resgatados(usuario.id)
+    return {"success": True, "data": dados}
+
+
+@roteador.get(
     "/cupons/resgatados/{usuario_id}",
     tags=["commerce"],
-    summary="Cupons resgatados pelo usuário",
+    summary="Cupons resgatados (legado — preferir /cupons/resgatados/me)",
     responses={401: {"description": "Token ausente ou inválido"}},
+    deprecated=True,
 )
 def cupons_resgatados(
     usuario_id: int,
@@ -121,12 +136,12 @@ def cupons_resgatados(
 )
 def verificar_cupom(
     cupom_id: int,
-    usuario_id: int,
+    usuario_id: int | None = Query(default=None, description="Obrigatório para empresa; omita para turista"),
     usuario: UsuarioToken = Depends(obter_usuario_obrigatorio_do_token),
     repositorio: RepositorioCupom = Depends(obter_repositorio_cupom),
 ):
-    validar_consulta_cupom_usuario(usuario, usuario_id)
-    ja = repositorio.ja_resgatado(cupom_id, usuario_id)
+    uid = validar_consulta_cupom_usuario(usuario, usuario_id)
+    ja = repositorio.ja_resgatado(cupom_id, uid)
     return {"success": True, "jaResgatado": ja}
 
 
@@ -142,9 +157,9 @@ def resgatar_cupom(
     servico: ServicoCupom = Depends(obter_servico_cupom),
     cache: ServicoCache = Depends(obter_cache_commerce),
 ):
-    validar_resgate_cupom(usuario, payload.usuario_id, payload.parceiro_id)
-    resultado = servico.resgatar(payload.cupom_id, payload.usuario_id, payload.parceiro_id)
-    cache.invalidar(f"cupons:resgatados:{payload.usuario_id}")
+    uid = validar_resgate_cupom(usuario, payload.usuario_id, payload.parceiro_id)
+    resultado = servico.resgatar(payload.cupom_id, uid, payload.parceiro_id)
+    cache.invalidar(f"cupons:resgatados:{uid}")
     cache.invalidar(f"cupons:disponiveis:{payload.parceiro_id or 'all'}")
     return resultado
 

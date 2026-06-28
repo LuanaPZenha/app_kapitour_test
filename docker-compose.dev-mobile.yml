@@ -1,0 +1,6 @@
+# Expõe a API também na porta 8000 (já liberada no firewall do Windows).
+# Use com: docker compose -f docker-compose.yml -f docker-compose.dev-mobile.yml up -d gateway
+services:
+  gateway:
+    ports:
+      - "8000:80"

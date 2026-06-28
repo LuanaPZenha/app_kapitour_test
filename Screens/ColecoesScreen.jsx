@@ -33,7 +33,7 @@ export default function ColecoesScreen() {
       setLoading(false);
       return;
     }
-    const { data, error } = await kapipassApi.listColecoes(userInfo.id);
+    const { data, error } = await kapipassApi.listColecoes();
     if (!error) setColecoes(data || []);
     setLoading(false);
     setRefreshing(false);

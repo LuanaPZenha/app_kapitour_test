@@ -148,7 +148,7 @@ export default function Cupons() {
         const [campResult, contagemResult, histResult] = await Promise.all([
           buscarCampanhasDoParceiro(data.id),
           buscarContagemCuponsPorCampanha(data.id),
-          buscarCuponsResgatados(data.id),
+          buscarCuponsResgatados(),
         ]);
         if (campResult.success) setCampanhas(campResult.data || []);
         if (contagemResult.success) setContagemCampanhas(contagemResult.data || {});
@@ -156,7 +156,7 @@ export default function Cupons() {
       } else {
         const [dispResult, resgatadosResult] = await Promise.all([
           buscarCuponsDisponiveis(),
-          buscarCuponsResgatados(data.id),
+          buscarCuponsResgatados(),
         ]);
         if (dispResult.success) setCuponsDisponiveis(dispResult.data || []);
         if (resgatadosResult.success) setCuponsResgatados(resgatadosResult.data || []);

@@ -47,6 +47,22 @@ class TestCommerceJWT:
         assert resposta.status_code == 200
         assert resposta.json()["success"] is True
 
+    def test_resgatados_me_sem_usuario_id_na_url(self, cliente, token_turista):
+        resposta = cliente.get(
+            "/api/cupons/resgatados/me",
+            headers={"Authorization": f"Bearer {token_turista}"},
+        )
+        assert resposta.status_code == 200
+        assert resposta.json()["success"] is True
+
+    def test_verificar_cupom_turista_sem_usuario_id(self, cliente, token_turista):
+        resposta = cliente.get(
+            "/api/cupons/verificar",
+            params={"cupom_id": 1},
+            headers={"Authorization": f"Bearer {token_turista}"},
+        )
+        assert resposta.status_code == 200
+
     def test_verificar_empresa_pode_consultar_turista(self, cliente, token_empresa):
         resposta = cliente.get(
             "/api/cupons/verificar",

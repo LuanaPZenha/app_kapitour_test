@@ -1,6 +1,6 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Header, HTTPException
+from fastapi import APIRouter, Depends, Header, HTTPException, Query
 
 from app.apresentacao.dependencias import (
     obter_cache_engagement,
@@ -46,7 +46,7 @@ def _invalidar_avaliacoes_ponto(cache: ServicoCache, ponto_id: int) -> None:
     responses={401: {"description": "Token ausente ou inválido"}},
 )
 def list_favoritos(
-    usuario_id: int,
+    usuario_id: int | None = Query(default=None, description="Legado — omita para usar o JWT"),
     usuario: UsuarioToken = Depends(obter_usuario_obrigatorio_do_token),
     servico: ServicoFavoritos = Depends(obter_servico_favoritos),
 ):
@@ -75,8 +75,8 @@ def create_favorito(
 
 @roteador.delete("/favoritos", tags=["engajamento"])
 def delete_favorito(
-    usuario_id: int,
     ponto_id: int,
+    usuario_id: int | None = Query(default=None, description="Legado — omita para usar o JWT"),
     usuario: UsuarioToken = Depends(obter_usuario_obrigatorio_do_token),
     repositorio: RepositorioFavorito = Depends(obter_repositorio_favorito),
     cache: ServicoCache = Depends(obter_cache_engagement),
@@ -105,6 +105,8 @@ def list_avaliacoes(
         if not usuario:
             raise HTTPException(status_code=401, detail="Não autenticado")
         usuario_id = resolver_usuario_escopo(usuario, usuario_id)
+    elif usuario and ponto_id is not None:
+        usuario_id = usuario.id
     resultado = servico.listar(ponto_id=ponto_id, usuario_id=usuario_id)
     if usuario_id and ponto_id:
         return resultado
@@ -156,6 +158,9 @@ def create_ponto_avaliacao(
     if usuario_id is not None:
         usuario = obter_usuario_obrigatorio_do_token(authorization)
         usuario_id = resolver_usuario_escopo(usuario, usuario_id)
+    elif authorization:
+        usuario = obter_usuario_obrigatorio_do_token(authorization)
+        usuario_id = usuario.id
     resultado = servico.criar_ponto_avaliacao(
         payload.ponto_id, usuario_id, payload.nota, payload.comentario
     )

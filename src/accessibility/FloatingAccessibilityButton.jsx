@@ -5,7 +5,6 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import AccessibilityPanel from "./AccessibilityPanel";
 import { useAccessibility } from "./AccessibilityContext";
 
-const TABBAR_HEIGHT = 90;
 const ACCENT = "#c83349";
 
 export default function FloatingAccessibilityButton() {
@@ -13,7 +12,7 @@ export default function FloatingAccessibilityButton() {
   const { state } = useAccessibility();
   const insets = useSafeAreaInsets();
 
-  const bottomPosition = insets.bottom + TABBAR_HEIGHT + 16;
+  const bottomPosition = insets.bottom + 16;
 
   return (
     <>

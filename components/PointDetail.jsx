@@ -99,13 +99,13 @@ const PointDetail = ({
     try {
       if (isFavorite) {
         // Remover dos favoritos
-        const { error } = await dbApi.removeFavorito(userInfo.id, point.id);
+        const { error } = await dbApi.removeFavorito(point.id);
 
         if (error) throw error;
         setIsFavorite(false);
       } else {
         // Adicionar aos favoritos
-        const { error } = await dbApi.addFavorito(userInfo.id, point.id);
+        const { error } = await dbApi.addFavorito(point.id);
 
         if (error) throw error;
         setIsFavorite(true);
@@ -157,10 +157,7 @@ const PointDetail = ({
 
     try {
       // Verificar se o usuário já avaliou este ponto
-      const { data: existingRating } = await dbApi.getAvaliacao(userInfo.id, point.id);
-
       const result = await dbApi.saveAvaliacao({
-        usuario_id: userInfo.id,
         ponto_id: point.id,
         nota: rating,
         comentario: comment,

@@ -36,7 +36,7 @@ export default function EcoPassScreen() {
       setLoading(false);
       return;
     }
-    const { data, error } = await kapipassApi.listEco(userInfo.id);
+    const { data, error } = await kapipassApi.listEco();
     if (!error && data) setEco(data);
     setLoading(false);
     setRefreshing(false);

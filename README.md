@@ -717,6 +717,19 @@ Demais rotas usam `RATE_LIMIT_DEFAULT` (100/min por IP e por usuário autenticad
 
 **Observabilidade:** cada serviço expõe `GET /api/health`, `GET /api/status` e `GET /api/metrics` (Prometheus).
 
+### Escopo JWT sem `usuario_id` (Etapa 7)
+
+O app mobile deixou de enviar `usuario_id` na maioria das rotas user-scoped. O backend deriva o usuário do **Bearer JWT** via `resolver_usuario_escopo()`.
+
+| Antes (legado) | Agora (preferido) |
+|----------------|-------------------|
+| `GET /favoritos?usuario_id=10` | `GET /favoritos` |
+| `GET /cupons/resgatados/10` | `GET /cupons/resgatados/me` |
+| `GET /kapipass/checkins?usuario_id=10` | `GET /kapipass/checkins` |
+| Body `{ usuario_id, ponto_id }` | Body `{ ponto_id }` + JWT |
+
+Rotas legadas com `usuario_id` continuam funcionando (compatibilidade). **Empresa (QR)** ainda envia `usuario_id` do turista escaneado em verificar/resgatar cupom.
+
 ---
 
 ## Banco de dados
