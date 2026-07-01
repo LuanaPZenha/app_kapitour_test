@@ -337,11 +337,54 @@ EXPO_PUBLIC_API_URL=http://localhost:8000/api
 
 ### URL da API por ambiente
 
-| Ambiente | `EXPO_PUBLIC_API_URL` |
-|----------|------------------------|
-| Expo Web / iOS Simulator | `http://localhost:8000/api` |
-| Emulador Android | `http://10.0.2.2:8000/api` |
-| Dispositivo físico (mesma rede Wi‑Fi) | `http://<IP-DA-SUA-MAQUINA>:8000/api` |
+| Ambiente | Configuração |
+|----------|----------------|
+| **Expo Web / simulador iOS** | `EXPO_PUBLIC_API_URL=http://localhost:8000/api` (padrão do `.env.example`) |
+| **Emulador Android** | Detectado automaticamente (`10.0.2.2:8000`) |
+| **Celular físico (Expo Go)** | **Automático** — IP e porta vêm do Metro; a API passa pelo proxy na mesma porta do QR code (ex.: `:8081`) |
+
+> **Equipe:** não é necessário editar IP no `.env` ao trocar de máquina ou rede Wi‑Fi. Copie `.env.example` → `.env` e use `localhost`.
+
+### Setup rápido para a equipe (celular + PC)
+
+**Pré-requisitos:** [Docker Desktop](https://www.docker.com/), Node 18+, [Expo Go](https://expo.dev/go) no celular, PC e celular na **mesma Wi‑Fi**.
+
+```bash
+git clone <repo>
+cd app_kapitour_test-main
+cp .env.example .env          # Linux/macOS
+# copy .env.example .env      # Windows
+npm install
+```
+
+**Terminal 1 — backend:**
+
+```bash
+# Windows
+powershell -ExecutionPolicy Bypass -File scripts/dev.ps1
+
+# macOS / Linux
+chmod +x scripts/dev.sh && ./scripts/dev.sh
+```
+
+**Terminal 2 — app:**
+
+```bash
+npm start                     # ja usa --lan
+```
+
+No celular: escaneie o QR code no **modo LAN** (não use Tunnel). No terminal do Expo deve aparecer:
+
+`[Kapitour] API via Metro (porta 8081): http://<IP>:8081/api`
+
+**Login teste:** `user@kapitour.com` / `user123`
+
+| Problema | Solução |
+|----------|---------|
+| `ERR_NETWORK` no celular | Reinicie com `npx expo start --lan --clear`; confira Docker (`docker compose ps`) |
+| Modo Tunnel no Expo | Troque para **LAN** — Tunnel não alcança API local |
+| Porta 8000 ocupada | O gateway tenta 8000 e 8080 automaticamente |
+| Windows: firewall | Execute uma vez como Admin: `scripts\abrir-firewall-api.bat` |
 
 > **Importante:** altere `JWT_SECRET` e `INTERNAL_SERVICE_KEY` em produção.
 
@@ -408,7 +451,7 @@ Repita para os demais serviços em portas distintas ou use apenas Docker para o 
 
 ```bash
 npm install
-npm start
+npm start          # modo LAN (padrao) — necessario para celular fisico
 ```
 
 Comandos úteis:
@@ -417,9 +460,12 @@ Comandos úteis:
 npm run android    # Emulador/dispositivo Android
 npm run ios        # Simulador iOS (macOS)
 npm run web        # Navegador
+npm run start:tunnel   # Apenas se precisar de Tunnel (API local NAO funciona)
 ```
 
-Certifique-se de que o backend está acessível na URL configurada em `EXPO_PUBLIC_API_URL`.
+Em **celular físico**, o app conecta à API via **proxy do Metro** (mesma porta do bundler). Não é preciso atualizar IP no `.env` ao mudar de computador ou rede.
+
+Certifique-se de que o backend Docker está rodando (`docker compose ps`).
 
 ---
 

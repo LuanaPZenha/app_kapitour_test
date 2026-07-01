@@ -13,6 +13,7 @@ import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { StyleSheet, View, ActivityIndicator } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { dbApi } from "./lib/api";
+import { inicializarClienteApi } from "./lib/api/cliente-http";
 import { useAuth, AuthProvider } from "./hooks/useAuth";
 
 import Home from "./Screens/Home";
@@ -136,6 +137,7 @@ export default function App() {
 
   useEffect(() => {
     const prefetch = async () => {
+      await inicializarClienteApi();
       try {
         const cat = await dbApi.listCategorias();
         if (!cat.error && cat.data) {
